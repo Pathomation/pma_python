@@ -13,5 +13,5 @@ setup(name='pma-python',
 		'Programming Language :: Python :: 3'],
 	  keywords='wsi whole slide imaging gigapixel microscopy histology pathology',
 	  install_requires=['pillow', 'requests'],
-	  python_requires='~=3',	# assume this only works in Python 3
+	  python_requires='>=3',	# assume this only works in Python 3
       zip_safe=False)
