@@ -8,6 +8,6 @@ setup(name='pma-python',
       license='Pathomation',
       packages=['pma-python'],
       install_requires=[
-          'PIL', 'urllib', 'requests'
+          'PIL', 'requests'
       ],
       zip_safe=False)
