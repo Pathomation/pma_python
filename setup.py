@@ -1,13 +1,13 @@
 from setuptools import setup
 
 setup(name='pma-python',
-      version='2.0.0.4',
+      version='2.0.0.5',
       description='Universal viewing of whole slide imaging and microscopy data',
       url='http://github.com/pathomation/pma-python',
       author='Pathomation',
 	  author_email='info@pathomation.com',
       license='http://free.pathomation.com/eula/',
-      packages=['pma-python'],
+      packages=['pma_python'],
 	  classifiers = [
 		'Development Status :: 3 - Alpha', 
 		'Programming Language :: Python :: 3'],
