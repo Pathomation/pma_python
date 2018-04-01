@@ -43,3 +43,16 @@ The following vendor formats are currently supported:
 * Zoomify (.zif) with JPEG, JPEG2000, LZW, Deflate, Raw, RLE
 * SmartZoom	(.szi) with JPEG, BMP
 * Objective Imaging / Glissano (.sws)
+
+
+## Installation from source
+To install from pypi
+```sh
+pip install pma-python
+```
+
+
+## How to use
+```python
+>>> from pma_python import *
+```
