@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.4"   # still considered an Alpha release at this point
+__version__ = "2.0.0.0"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -208,10 +208,18 @@ def get_slides(startDir, sessionID = None):
 	Return an array of slides available to sessionID in the startDir directory
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)
+	if (startDir.startswith("/")):
+		startDir = startDir[1:]		
+	url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)	
 	contents = urlopen(url).read()
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom.firstChild)
+
+def get_slide_file_extension(slideRef, sessionID = None):
+	"""
+	Determine the file extension for this slide
+	"""
+	return path.splitext(slideRef)[-1]
 
 def get_uid(slideRef, sessionID = None):
 	"""
@@ -247,24 +255,65 @@ def get_tile_size(sessionID = None):
 	return (int(info["TileSize"]), int(info["TileSize"]))
 	
 def get_slide_info(slideRef, sessionID = None):
+	"""
+	Return raw image information in the form of nested dictionaries
+	"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
+		
 	global _pma_slideinfos
 
 	if (not (slideRef in _pma_slideinfos[sessionID])):
 		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + _pma_q(sessionID) +  "&pathOrUid=" + _pma_q(slideRef)
 		r = requests.get(url)
-		_pma_slideinfos[sessionID][slideRef] = r.json()["d"]
+		json = r.json()
+		# print(json)
+		if ("Code" in json):
+			raise Exception("ImageInfo to " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		_pma_slideinfos[sessionID][slideRef] = json
 
 	return _pma_slideinfos[sessionID][slideRef]
 
 def get_max_zoomlevel(slideRef, sessionID = None):
+	"""
+	Determine the maximum zoomlevel that still represents an optical magnification
+	"""
 	info = get_slide_info(slideRef, sessionID)
 	if ("MaxZoomLevel" in info): 
 		return int(info["MaxZoomLevel"])
 	else:
 		return int(info["NumberOfZoomLevels"])
 
+def get_zoomlevels_list(slideRef, sessionID = None, min_number_of_tiles = 0):
+	"""
+	Obtain a list with all zoomlevels, starting with 0 and up to and including max_zoomlevel
+	Use min_number_of_tiles argument to specify that you're only interested in zoomlevels that include at lease a given number of tiles
+	"""
+	return sorted(list(get_zoomlevels_dict(slideRef, sessionID, min_number_of_tiles).keys()))
+
+def get_zoomlevels_dict(slideRef, sessionID = None, min_number_of_tiles = 0):
+	"""
+	Obtain a dictionary with the number of tiles per zoomlevel.
+	Information is returned as (x, y, n) tupels per zoomlevel, with 
+		x = number of horizontal tiles, 
+		y = number of vertical tiles, 
+		n = total number of tiles at specified zoomlevel (x * y)
+	Use min_number_of_tiles argument to specify that you're only interested in zoomlevels that include at lease a given number of tiles
+	"""
+	zoomlevels = list(range(0, get_max_zoomlevel(slideRef) + 1))
+	dimensions = [ get_number_of_tiles(slideRef, z) for z in zoomlevels if get_number_of_tiles(slideRef, z)[2] > min_number_of_tiles]
+	d = dict(zip(zoomlevels[-len(dimensions):], dimensions))
+	
+	
+	return d
+	
 def get_pixels_per_micrometer(slideRef, zoomlevel = None, sessionID = None):
+	"""
+	Retrieve the physical dimension in terms of pixels per micrometer.
+	When zoomlevel is left to its default value of None, dimensions at the highest zoomlevel are returned 
+	(in effect returning the "native" resolution at which the slide was registered)
+	"""
 	maxZoomLevel = get_max_zoomlevel(slideRef, sessionID)
 	info = get_slide_info(slideRef, sessionID)
 	xppm = info["MicrometresPerPixelX"]
@@ -287,7 +336,10 @@ def get_pixel_dimensions(slideRef, zoomlevel = None, sessionID = None):
 def get_number_of_tiles(slideRef, zoomlevel = None, sessionID = None):
 	pixels = get_pixel_dimensions(slideRef, zoomlevel, sessionID)
 	sz = get_tile_size(sessionID)
-	return (int(ceil(pixels[0] / sz[0])), int(ceil(pixels[1] / sz[0])))
+	xtiles = int(ceil(pixels[0] / sz[0]))
+	ytiles = int(ceil(pixels[1] / sz[0]))
+	ntiles = xtiles * ytiles
+	return (xtiles, ytiles, ntiles)
 	
 def get_physical_dimensions(slideRef, sessionID = None):
 	ppmData = get_pixels_per_micrometer(slideRef, sessionID)
