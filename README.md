@@ -1,6 +1,6 @@
-# pma-python
-PMA-python is a Python wrapper library for PMA.start, 
-a universal viewier for whole slide imaging and microscopy.
+# pma_python
+pma_python is a Python wrapper library for PMA.start, 
+a universal viewer by Pathomation for whole slide imaging and microscopy.
 
 If you're working with
 
@@ -14,9 +14,11 @@ just wish there was a way to now automatically evaluate it on
 100s of slides (batch processing)
 
 and you're doing all of this in Python, then PMA.start and 
-PMA-python are for you!
+pma_python are for you! 
 
-With PMA-python, you can inspect and navigate any type of 
+PMA.start can be downloaded free of charge from http://free.pathomation.com
+
+With pma_python, you can inspect and navigate any type of 
 microscopic imaging file format available. Whether you have 
 macroscopic observations, whole slide imaging data, or fluorescent 
 snapshot observations, we can bring it all into Python now.
@@ -44,11 +46,13 @@ The following vendor formats are currently supported:
 * SmartZoom	(.szi) with JPEG, BMP
 * Objective Imaging / Glissano (.sws)
 
+The most up to date list with supported file formats can be found at
+http://free.pathomation.com/formats
 
 ## Installation from source
 To install from pypi
 ```sh
-pip install pma-python
+pip install pma_python
 ```
 
 
