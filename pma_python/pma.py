@@ -1,4 +1,4 @@
-from os import path
+import os
 from math import ceil
 from PIL import Image
 from random import choice
@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.25"
+__version__ = "2.0.0.26"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -85,7 +85,7 @@ def _pma_api_url(sessionID = None, xml = True):
 def _pma_join(*s):
 	joinstring = ""
 	for ss in s:
-		joinstring = path.join(joinstring, ss)
+		joinstring = os.path.join(joinstring, ss)
 	return joinstring.replace("\\", "/")
 	
 def _pma_XmlToStringArray(root, limit = 0):
@@ -219,13 +219,13 @@ def get_slide_file_extension(slideRef, sessionID = None):
 	"""
 	Determine the file extension for this slide
 	"""
-	return path.splitext(slideRef)[-1]
+	return os.path.splitext(slideRef)[-1]
 
 def get_slide_file_name(slideRef, sessionID = None):
 	"""
 	Determine the file name (with extension) for this slide
 	"""
-	return path.basename(slideRef)
+	return os.path.basename(slideRef)
 
 def get_uid(slideRef, sessionID = None):
 	"""
@@ -461,3 +461,19 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 	for x in range(fromX, toX):
 		for y in range(fromY, toY):
 			yield get_tile(slideRef, x, y, zoomlevel, sessionID)
+			
+def show_slide(slideRef, sessionID = None):
+	"""Launch the default webbrowser and load a web-based viewer for the slide"""
+	sessionID = _pma_session_id(sessionID)
+	if (os.name == "posix"):
+		os_cmd = "open "
+	else:
+		os_cmd = "start "
+	
+	if (sessionID == _pma_pmacoreliteSessionID):
+		url = "http://free.pathomation.com/pma-view-lite/?path=" + _pma_q(slideRef)
+	else:
+		url = (_pma_url(sessionID) + "viewer/index.htm"
+			+ "?sessionID=" + _pma_q(sessionID)
+			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
+	os.system(os_cmd+url)
