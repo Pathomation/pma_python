@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.0"
+__version__ = "2.0.0.21"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -221,6 +221,12 @@ def get_slide_file_extension(slideRef, sessionID = None):
 	"""
 	return path.splitext(slideRef)[-1]
 
+def get_slide_file_name(slideRef, sessionID = None):
+	"""
+	Determine the file name (with extension) for this slide
+	"""
+	return path.basename(slideRef)
+
 def get_uid(slideRef, sessionID = None):
 	"""
 	Get the UID for a specific slide 
@@ -268,11 +274,13 @@ def get_slide_info(slideRef, sessionID = None):
 		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + _pma_q(sessionID) +  "&pathOrUid=" + _pma_q(slideRef)
 		r = requests.get(url)
 		json = r.json()
-		# print(json)
 		if ("Code" in json):
 			raise Exception("ImageInfo to " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
-		_pma_slideinfos[sessionID][slideRef] = json
-
+		elif ("d" in json):
+			_pma_slideinfos[sessionID][slideRef] = json["d"]
+		else:
+			_pma_slideinfos[sessionID][slideRef] = json
+			
 	return _pma_slideinfos[sessionID][slideRef]
 
 def get_max_zoomlevel(slideRef, sessionID = None):
@@ -325,6 +333,7 @@ def get_pixels_per_micrometer(slideRef, zoomlevel = None, sessionID = None):
 		return (float(xppm) / factor, float(yppm) / factor)		
 	
 def get_pixel_dimensions(slideRef, zoomlevel = None, sessionID = None):
+	"""Get the total dimensions of a slide image at a given zoomlevel"""
 	maxZoomLevel = get_max_zoomlevel(slideRef, sessionID)
 	info = get_slide_info(slideRef, sessionID)
 	if (zoomlevel is None or zoomlevel == maxZoomLevel):
@@ -334,6 +343,7 @@ def get_pixel_dimensions(slideRef, zoomlevel = None, sessionID = None):
 		return (int(info["Width"]) * factor, int(info["Height"]) * factor)
 
 def get_number_of_tiles(slideRef, zoomlevel = None, sessionID = None):
+	"""Determine the number of tiles needed to reconstitute a slide at a given zoomlevel"""
 	pixels = get_pixel_dimensions(slideRef, zoomlevel, sessionID)
 	sz = get_tile_size(sessionID)
 	xtiles = int(ceil(pixels[0] / sz[0]))
@@ -342,20 +352,38 @@ def get_number_of_tiles(slideRef, zoomlevel = None, sessionID = None):
 	return (xtiles, ytiles, ntiles)
 	
 def get_physical_dimensions(slideRef, sessionID = None):
+	"""Determine the physical dimensions of the sample represented by the slide.
+	This is independent of the zoomlevel: the physical properties don't change because the magnification changes"""
 	ppmData = get_pixels_per_micrometer(slideRef, sessionID)
 	pixelSz = get_pixel_dimensions(slideRef, sessionID)
 	return (pixelSz[0] * ppmData[0], pixelSz[1] * ppmData[1])
 			
 def get_number_of_channels(slideRef, sessionID = None):
+	"""Number of fluorescent channels for a slide (when slide is brightfield, return is always 1)"""
 	info = get_slide_info(slideRef, sessionID)
 	channels = info["TimeFrames"][0]["Layers"][0]["Channels"]
 	return len(channels)
 
+def get_number_of_layers(slideRef, sessionID = None):
+	"""Number of (z-stacked) layers for a slide"""
+	info = get_slide_info(slideRef, sessionID)
+	layers = info["TimeFrames"][0]["Layers"]
+	return len(layers)
+	
 def is_fluorescent(slideRef, sessionID = None):
 	"""Determine whether a slide is a fluorescent image or not"""
 	return get_number_of_channels(slideRef, sessionID) > 1
 
-def determine_magnification(slideRef, zoomlevel = None, exact = False, sessionID = None):
+def is_multi_layer(slideRef, sessionID = None):
+	"""Determine whether a slide contains multiple (stacked) layers or not"""
+	return get_number_of_layers(slideRef, sessionID) > 1
+
+def is_z_stack(slideRef, sessionID = None):
+	"""Determine whether a slide is a z-stack or not"""
+	return is_multi_layer(slideRef, sessionID)
+	
+def get_magnification(slideRef, zoomlevel = None, exact = False, sessionID = None):
+	"""Get the magnification represented at a certain zoomlevel"""
 	ppm = get_pixels_per_micrometer(slideRef, zoomlevel, sessionID)[0]
 	if (ppm > 0):
 		if (exact == True):
@@ -364,8 +392,47 @@ def determine_magnification(slideRef, zoomlevel = None, exact = False, sessionID
 			return round(40 / round(ppm / 0.25))
 	else:
 		return 0
+
+def get_barcode_url(slideRef, sessionID = None):
+	"""Get the URL that points to the barcode (alias for "label") for a slide"""
+	sessionID = _pma_session_id(sessionID)
+	url = (_pma_url(sessionID) + "barcode"
+		+ "?SessionID=" + _pma_q(sessionID)
+		+ "&pathOrUid=" + _pma_q(slideRef))
+	return url
+
+def get_barcode_image(slideRef, sessionID = None):
+	"""Get the barcode (alias for "label") image for a slide"""
+	r = requests.get(get_barcode_url(slideRef, sessionID))
+	img = Image.open(BytesIO(r.content))
+	return img
+
+def get_label_url(slideRef, sessionID = None):
+	"""Get the URL that points to the label for a slide"""
+	return get_barcode_url(slideRef, sessionID)
 	
+def get_label_image(slideRef, sessionID = None):
+	"""Get the label image for a slide"""
+	r = requests.get(get_label_url(slideRef, sessionID))
+	img = Image.open(BytesIO(r.content))
+	return img
+		
+def get_thumbnail_url(slideRef, sessionID = None):
+	"""Get the URL that points to the thumbnail for a slide"""
+	sessionID = _pma_session_id(sessionID)
+	url = (_pma_url(sessionID) + "thumbnail"
+		+ "?SessionID=" + _pma_q(sessionID)
+		+ "&pathOrUid=" + _pma_q(slideRef))
+	return url
+	
+def get_thumbnail_image(slideRef, sessionID = None):
+	"""Get the thumbnail image for a slide"""
+	r = requests.get(get_thumbnail_url(slideRef, sessionID))
+	img = Image.open(BytesIO(r.content))
+	return img
+
 def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None):
+	"""Get a single tile at position (x, y)"""
 	sessionID = _pma_session_id(sessionID)
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
@@ -382,10 +449,15 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None):
 	img = Image.open(BytesIO(r.content))
 	return img
 
-def get_tiles(slideRef, fromX = 0, fromY = 0, toX = 0, toY = 0, zoomlevel = None, sessionID = None):
+def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, sessionID = None):
+	"""Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom"""
 	sessionID = _pma_session_id(sessionID)
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
+	if (toX is None):
+		toX = get_number_of_tiles(slideRef, zoomlevel, sessionID)[0]
+	if (toY is None):
+		toY = get_number_of_tiles(slideRef, zoomlevel, sessionID)[1]
 	for x in range(fromX, toX):
 		for y in range(fromY, toY):
 			yield get_tile(slideRef, x, y, zoomlevel, sessionID)
