@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pma-python',
-      version='2.0.0.5',
+      version='2.0.0.21',
       description='Universal viewing of whole slide imaging and microscopy data',
       url='http://github.com/pathomation/pma-python',
       author='Pathomation',
