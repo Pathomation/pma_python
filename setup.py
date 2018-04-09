@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(name='pma_python',
-      version='2.0.0.24',
+      version='2.0.0.25',
       description='Universal viewing of digital microscopy, whole slide imaging and digital pathology data',
-      url='http://github.com/pathomation/pma-python',
+      url='http://github.com/pathomation/pma_python',
       author='Pathomation',
 	  author_email='info@pathomation.com',
       license='http://free.pathomation.com/eula/',
