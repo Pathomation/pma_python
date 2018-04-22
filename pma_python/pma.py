@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.26"
+__version__ = "2.0.0.27"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -162,6 +162,20 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	
 	return (sessionID)	
 
+def disconnect(sessionID = None):
+	"""
+	Attempt to connect to PMA.core instance; success results in a SessionID
+	"""
+	sessionID = _pma_session_id(sessionID)
+	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + _pma_q((sessionID))
+	contents = urlopen(url).read()
+	if (len(_pma_sessions.keys()) > 0):
+		# yes we do! This means that when there's a PMA.core active session AND PMA.core.lite version running, 
+		# the PMA.core active will be selected and returned
+		del _pma_sessions[sessionID]
+		del _pma_slideinfos[sessionID]
+	return True
+
 def get_root_directories(sessionID = None):
 	"""
 	Return an array of root-directories available to sessionID
@@ -288,10 +302,14 @@ def get_max_zoomlevel(slideRef, sessionID = None):
 	Determine the maximum zoomlevel that still represents an optical magnification
 	"""
 	info = get_slide_info(slideRef, sessionID)
-	if ("MaxZoomLevel" in info): 
-		return int(info["MaxZoomLevel"])
+	if (info == None):
+		print("Unable to get information for", slideRef, " from ", sessionID)
+		return 0
 	else:
-		return int(info["NumberOfZoomLevels"])
+		if ("MaxZoomLevel" in info): 
+			return int(info["MaxZoomLevel"])
+		else:
+			return int(info["NumberOfZoomLevels"])
 
 def get_zoomlevels_list(slideRef, sessionID = None, min_number_of_tiles = 0):
 	"""
@@ -309,8 +327,8 @@ def get_zoomlevels_dict(slideRef, sessionID = None, min_number_of_tiles = 0):
 		n = total number of tiles at specified zoomlevel (x * y)
 	Use min_number_of_tiles argument to specify that you're only interested in zoomlevels that include at lease a given number of tiles
 	"""
-	zoomlevels = list(range(0, get_max_zoomlevel(slideRef) + 1))
-	dimensions = [ get_number_of_tiles(slideRef, z) for z in zoomlevels if get_number_of_tiles(slideRef, z)[2] > min_number_of_tiles]
+	zoomlevels = list(range(0, get_max_zoomlevel(slideRef, sessionID) + 1))
+	dimensions = [ get_number_of_tiles(slideRef, z, sessionID) for z in zoomlevels if get_number_of_tiles(slideRef, z, sessionID)[2] > min_number_of_tiles]
 	d = dict(zip(zoomlevels[-len(dimensions):], dimensions))
 	
 	
