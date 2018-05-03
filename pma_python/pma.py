@@ -9,13 +9,14 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.27"
+__version__ = "2.0.0.28"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
 _pma_slideinfos = dict()
 _pma_pmacoreliteURL = "http://localhost:54001/"
 _pma_pmacoreliteSessionID = "SDK.Python"
+_pma_usecachewhenretrievingtiles = True
 
 def _pma_session_id(sessionID = None):
 	if (sessionID is None):
@@ -229,13 +230,13 @@ def get_slides(startDir, sessionID = None):
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom.firstChild)
 
-def get_slide_file_extension(slideRef, sessionID = None):
+def get_slide_file_extension(slideRef):
 	"""
 	Determine the file extension for this slide
 	"""
 	return os.path.splitext(slideRef)[-1]
 
-def get_slide_file_name(slideRef, sessionID = None):
+def get_slide_file_name(slideRef):
 	"""
 	Determine the file name (with extension) for this slide
 	"""
@@ -307,9 +308,17 @@ def get_max_zoomlevel(slideRef, sessionID = None):
 		return 0
 	else:
 		if ("MaxZoomLevel" in info): 
-			return int(info["MaxZoomLevel"])
+			try:
+				return int(info["MaxZoomLevel"])
+			except:
+				print("Something went wrong consulting the MaxZoomLevel key in info{} dictionary; value =", info["MaxZoomLevel"])
+				return 0
 		else:
-			return int(info["NumberOfZoomLevels"])
+			try:
+				return int(info["NumberOfZoomLevels"])
+			except:
+				print("Something went wrong consulting the NumberOfZoomLevels key in info{} dictionary; value =", info["NumberOfZoomLevels"])
+				return 0
 
 def get_zoomlevels_list(slideRef, sessionID = None, min_number_of_tiles = 0):
 	"""
@@ -462,7 +471,8 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None):
 		+ "&pathOrUid=" + _pma_q(slideRef)
 		+ "&x=" + _pma_q(x)
 		+ "&y=" + _pma_q(y)
-		+ "&z=" + _pma_q(zoomlevel)	)
+		+ "&z=" + _pma_q(zoomlevel)	
+		+ "&cache=" + str(_pma_usecachewhenretrievingtiles).lower())
 	r = requests.get(url)
 	img = Image.open(BytesIO(r.content))
 	return img
@@ -495,3 +505,4 @@ def show_slide(slideRef, sessionID = None):
 			+ "?sessionID=" + _pma_q(sessionID)
 			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
 	os.system(os_cmd+url)
+6
