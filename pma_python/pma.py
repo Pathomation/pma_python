@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.28"
+__version__ = "2.0.0.29"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -45,6 +45,7 @@ def _pma_first_session_id():
 			return _pma_pmacoreliteSessionID
 		else:
 			# no stored PMA.core sessions found NOR PMA.core.lite
+			raise Exception("No stored PMA.core sessions found NOR PMA.core.lite")
 			return None
 	
 def _pma_url(sessionID = None):	
@@ -165,17 +166,19 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 
 def disconnect(sessionID = None):
 	"""
-	Attempt to connect to PMA.core instance; success results in a SessionID
+	Disconnect from a PMA.core instance; return True if session exists; return False if session didn't exist (anymore)
 	"""
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + _pma_q((sessionID))
-	contents = urlopen(url).read()
+	_ = urlopen(url).read()
 	if (len(_pma_sessions.keys()) > 0):
 		# yes we do! This means that when there's a PMA.core active session AND PMA.core.lite version running, 
 		# the PMA.core active will be selected and returned
 		del _pma_sessions[sessionID]
 		del _pma_slideinfos[sessionID]
-	return True
+		return True	
+	else:
+		return False
 
 def get_root_directories(sessionID = None):
 	"""
@@ -269,7 +272,7 @@ def get_tile_size(sessionID = None):
 	if (len(_pma_slideinfos[sessionID]) < 1):
 		dir = get_first_non_empty_directory(sessionID)
 		slides = get_slides(dir, sessionID)
-		info = get_slide_info(sessionID, slides[0])
+		info = get_slide_info(slides[0], sessionID)
 	else:
 		info = choice(list(_pma_slideinfos[sessionID].values()))
 		
