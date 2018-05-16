@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.29"
+__version__ = "2.0.0.28"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -45,7 +45,6 @@ def _pma_first_session_id():
 			return _pma_pmacoreliteSessionID
 		else:
 			# no stored PMA.core sessions found NOR PMA.core.lite
-			raise Exception("No stored PMA.core sessions found NOR PMA.core.lite")
 			return None
 	
 def _pma_url(sessionID = None):	
@@ -57,10 +56,13 @@ def _pma_url(sessionID = None):
 		return _pma_pmacoreliteURL
 	else:
 		# assume sessionID is a valid session; otherwise the following will generate an error
-		url = _pma_sessions[sessionID]
-		if (not url.endswith("/")):
-			url = url + "/"
-		return url
+		if sessionID in _pma_sessions.keys():
+			url = _pma_sessions[sessionID]
+			if (not url.endswith("/")):
+				url = url + "/"
+			return url
+		else:
+			raise Exception("Invalid sessionID:", sessionID)
 
 def _pma_is_lite(pmacoreURL = _pma_pmacoreliteURL):
 	url = _pma_join(pmacoreURL, "api/xml/IsLite")
