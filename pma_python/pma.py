@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.28"
+__version__ = "2.0.0.31"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -89,7 +89,8 @@ def _pma_api_url(sessionID = None, xml = True):
 def _pma_join(*s):
 	joinstring = ""
 	for ss in s:
-		joinstring = os.path.join(joinstring, ss)
+		if not (ss is None):
+			joinstring = os.path.join(joinstring, ss)
 	return joinstring.replace("\\", "/")
 	
 def _pma_XmlToStringArray(root, limit = 0):
@@ -136,9 +137,12 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	Attempt to connect to PMA.core instance; success results in a SessionID
 	"""
 	if (pmacoreURL == _pma_pmacoreliteURL):
-		# no point authenticating localhost / PMA.core.lite
-		return _pma_pmacoreliteSessionID
-		
+		if is_lite():
+			# no point authenticating localhost / PMA.core.lite
+			return _pma_pmacoreliteSessionID
+		else:
+			return None
+			
 	# purposefully DON'T use helper function _pma_api_url() here:	
 	# why? Because_pma_api_url() takes session information into account (which we don't have yet)
 	url = _pma_join(pmacoreURL, "api/xml/authenticate?caller=SDK.Python") 
@@ -147,8 +151,12 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	if (pmacorePassword != ""):
 		url += "&password=" + _pma_q(pmacorePassword)
 	
-	contents = urlopen(url).read()
-	dom = minidom.parseString(contents)
+	try:
+		contents = urlopen(url).read()
+		dom = minidom.parseString(contents)
+	except:
+		# Something went wrong; unable to communicate with specified endpoint
+		return None
 		
 	loginresult = dom.firstChild
 	succ = loginresult.getElementsByTagName("Success")[0]
@@ -168,19 +176,17 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 
 def disconnect(sessionID = None):
 	"""
-	Disconnect from a PMA.core instance; return True if session exists; return False if session didn't exist (anymore)
+	Attempt to connect to PMA.core instance; success results in a SessionID
 	"""
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + _pma_q((sessionID))
-	_ = urlopen(url).read()
+	contents = urlopen(url).read()
 	if (len(_pma_sessions.keys()) > 0):
 		# yes we do! This means that when there's a PMA.core active session AND PMA.core.lite version running, 
 		# the PMA.core active will be selected and returned
 		del _pma_sessions[sessionID]
 		del _pma_slideinfos[sessionID]
-		return True	
-	else:
-		return False
+	return True
 
 def get_root_directories(sessionID = None):
 	"""
@@ -274,7 +280,7 @@ def get_tile_size(sessionID = None):
 	if (len(_pma_slideinfos[sessionID]) < 1):
 		dir = get_first_non_empty_directory(sessionID)
 		slides = get_slides(dir, sessionID)
-		info = get_slide_info(slides[0], sessionID)
+		info = get_slide_info(sessionID, slides[0])
 	else:
 		info = choice(list(_pma_slideinfos[sessionID].values()))
 		
@@ -292,6 +298,7 @@ def get_slide_info(slideRef, sessionID = None):
 
 	if (not (slideRef in _pma_slideinfos[sessionID])):
 		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + _pma_q(sessionID) +  "&pathOrUid=" + _pma_q(slideRef)
+		print(url);
 		r = requests.get(url)
 		json = r.json()
 		if ("Code" in json):
