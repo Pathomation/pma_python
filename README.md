@@ -2,6 +2,9 @@
 pma_python is a Python wrapper library for PMA.start, 
 a universal viewer by Pathomation for whole slide imaging and microscopy.
 
+YOU NEED TO HAVE PMA.START (OR PMA.CORE) RUNNING IN ORDER TO USE THIS
+LIBRARY. PMA_PYTHON IS NOT A STAND-ALONE LIBRARY FOR WSI.
+
 If you're working with
 
 * microscopy data and are you tired of having to use a different 
@@ -54,7 +57,10 @@ To install from pypi
 ```sh
 pip install pma_python
 ```
-
+To upgrade an already existing version from pypi
+```sh
+pip install --upgrade pma_python
+```
 
 ## How to use
 ```python
