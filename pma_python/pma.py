@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.31"
+__version__ = "2.0.0.32"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -17,6 +17,7 @@ _pma_slideinfos = dict()
 _pma_pmacoreliteURL = "http://localhost:54001/"
 _pma_pmacoreliteSessionID = "SDK.Python"
 _pma_usecachewhenretrievingtiles = True
+_pma_amount_of_data_downloaded = {_pma_pmacoreliteSessionID: 0}
 
 def _pma_session_id(sessionID = None):
 	if (sessionID is None):
@@ -171,6 +172,8 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 		_pma_sessions[sessionID] = pmacoreURL
 		global _pma_slideinfos
 		_pma_slideinfos[sessionID] = dict()
+		global _pma_amount_of_data_downloaded
+		_pma_amount_of_data_downloaded[sessionID] = len(contents)
 	
 	return (sessionID)	
 
@@ -181,6 +184,8 @@ def disconnect(sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + _pma_q((sessionID))
 	contents = urlopen(url).read()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(contents)
 	if (len(_pma_sessions.keys()) > 0):
 		# yes we do! This means that when there's a PMA.core active session AND PMA.core.lite version running, 
 		# the PMA.core active will be selected and returned
@@ -195,6 +200,8 @@ def get_root_directories(sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "GetRootDirectories?sessionID=" + _pma_q((sessionID))
 	contents = urlopen(url).read()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(contents)
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom.firstChild)
 
@@ -203,28 +210,36 @@ def get_directories(startDir, sessionID = None):
 	Return an array of sub-directories available to sessionID in the startDir directory
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID) + "GetDirectories?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)
-	contents = urlopen(url).read()
-	dom = minidom.parseString(contents)
-	return _pma_XmlToStringArray(dom.firstChild)
+	url = _pma_api_url(sessionID, False) + "GetDirectories?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("get_directories to " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+	elif ("d" in json):
+		dirs  = json["d"]
+	else:
+		dirs = json
+	return dirs
 
 def get_first_non_empty_directory(startDir = None, sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 
 	if ((startDir is None) or (startDir == "")):
 		startDir = "/"
-	slides = get_slides(startDir, sessionID)
+	slides = get_slides(startDir = startDir, sessionID = sessionID)
 	if (len(slides) > 0):
 		return startDir
 	else:
 		if (startDir == "/"):
-			for dir in get_root_directories(sessionID):
-				nonEmtptyDir = get_first_non_empty_directory(dir, sessionID)
+			for dir in get_root_directories(sessionID = sessionID):
+				nonEmtptyDir = get_first_non_empty_directory(startDir = dir, sessionID = sessionID)
 				if (not (nonEmtptyDir is None)):
 					return nonEmtptyDir
 		else:
 			for dir in get_directories(startDir, sessionID):
-				nonEmtptyDir = get_first_non_empty_directory(dir, sessionID)
+				nonEmtptyDir = get_first_non_empty_directory(startDir = dir, sessionID = sessionID)
 				if (not (nonEmtptyDir is None)):
 					return nonEmtptyDir
 	return None
@@ -236,10 +251,18 @@ def get_slides(startDir, sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 	if (startDir.startswith("/")):
 		startDir = startDir[1:]		
-	url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)	
-	contents = urlopen(url).read()
-	dom = minidom.parseString(contents)
-	return _pma_XmlToStringArray(dom.firstChild)
+	url = _pma_api_url(sessionID, False) + "GetFiles?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)	
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("get_slides from " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+	elif ("d" in json):
+		slides  = json["d"]
+	else:
+		slides = json
+	return slides
 
 def get_slide_file_extension(slideRef):
 	"""
@@ -260,6 +283,8 @@ def get_uid(slideRef, sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "GetUID?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(slideRef)
 	contents = urlopen(url).read()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(contents)
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom)[0]
 	
@@ -301,6 +326,8 @@ def get_slide_info(slideRef, sessionID = None):
 		print(url);
 		r = requests.get(url)
 		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
 		if ("Code" in json):
 			raise Exception("ImageInfo to " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
 		elif ("d" in json):
@@ -444,6 +471,8 @@ def get_barcode_image(slideRef, sessionID = None):
 	"""Get the barcode (alias for "label") image for a slide"""
 	r = requests.get(get_barcode_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
 def get_label_url(slideRef, sessionID = None):
@@ -454,6 +483,8 @@ def get_label_image(slideRef, sessionID = None):
 	"""Get the label image for a slide"""
 	r = requests.get(get_label_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 		
 def get_thumbnail_url(slideRef, sessionID = None):
@@ -468,14 +499,25 @@ def get_thumbnail_image(slideRef, sessionID = None):
 	"""Get the thumbnail image for a slide"""
 	r = requests.get(get_thumbnail_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
-def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None):
-	"""Get a single tile at position (x, y)"""
+def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None, format = "jpg", quality = 100): 
+	"""
+	Get a single tile at position (x, y)
+	Format can be 'jpg' or 'png'
+	Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
+	"""
 	sessionID = _pma_session_id(sessionID)
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
-	url = (_pma_url(sessionID) + "tile"
+
+	url = _pma_url(sessionID)
+	if url is None:
+		raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
+
+	url += ("tile"
 		+ "?SessionID=" + _pma_q(sessionID)
 		+ "&channels=" + _pma_q("0")
 		+ "&timeframe=" + _pma_q("0")
@@ -484,14 +526,23 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None):
 		+ "&x=" + _pma_q(x)
 		+ "&y=" + _pma_q(y)
 		+ "&z=" + _pma_q(zoomlevel)	
+		+ "&format=" + _pma_q(format)
+		+ "&quality=" + _pma_q(quality)
 		+ "&cache=" + str(_pma_usecachewhenretrievingtiles).lower())
 	r = requests.get(url)
 	img = Image.open(BytesIO(r.content))
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
-def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, sessionID = None):
-	"""Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom"""
+def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, sessionID = None, format = "jpg", quality = 100):
+	"""
+	Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom
+	Format can be 'jpg' or 'png'
+	Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
+	"""
 	sessionID = _pma_session_id(sessionID)
+
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
 	if (toX is None):
@@ -500,7 +551,7 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 		toY = get_number_of_tiles(slideRef, zoomlevel, sessionID)[1]
 	for x in range(fromX, toX):
 		for y in range(fromY, toY):
-			yield get_tile(slideRef, x, y, zoomlevel, sessionID)
+			yield get_tile(slideRef = slideRef, x = x, y = y, zoomlevel = zoomlevel, sessionID = sessionID, format = format, quality = quality)
 			
 def show_slide(slideRef, sessionID = None):
 	"""Launch the default webbrowser and load a web-based viewer for the slide"""
@@ -513,7 +564,11 @@ def show_slide(slideRef, sessionID = None):
 	if (sessionID == _pma_pmacoreliteSessionID):
 		url = "http://free.pathomation.com/pma-view-lite/?path=" + _pma_q(slideRef)
 	else:
-		url = (_pma_url(sessionID) + "viewer/index.htm"
+		url = _pma_url(sessionID)
+		if url is None:
+			raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
+		else:
+			url += ("viewer/index.htm"
 			+ "?sessionID=" + _pma_q(sessionID)
 			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
 	os.system(os_cmd+url)
