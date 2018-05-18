@@ -1,8 +1,12 @@
 from setuptools import setup
 
+with open('long_desc.txt') as file:
+    long_description = file.read()
+	  
 setup(name='pma_python',
-      version='2.0.0.32',
+      version='2.0.0.33',
       description='Universal viewing of digital microscopy, whole slide imaging and digital pathology data',
+	  long_description=long_description,
       url='http://github.com/pathomation/pma_python',
       author='Pathomation',
 	  author_email='info@pathomation.com',
