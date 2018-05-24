@@ -1,0 +1,6 @@
+
+build/
+
+dist/
+
+pma_python\.egg-info/
