@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.34"
+__version__ = "2.0.0.35"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
