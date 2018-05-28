@@ -6,14 +6,9 @@ LIBRARY. PMA_PYTHON IS NOT A STAND-ALONE LIBRARY FOR WSI.
 
 If you're working with
 
-* microscopy data and are you tired of having to use a different 
-library for each vendor specific digital slide format
-* image analysis software and are you looking for a way to have 
-complete control over your algorithms (and not just be able to 
-select those provided for you)
-* novel evaluation methods for histology / pathology and do you 
-just wish there was a way to now automatically evaluate it on 
-100s of slides (batch processing)
+* microscopy data and are you tired of having to use a different library for each vendor specific digital slide format
+* image analysis software and are you looking for a way to have complete control over your algorithms (and not just be able to select those provided for you)
+* novel evaluation methods for histology / pathology and do you just wish there was a way to now automatically evaluate it on 100s of slides (batch processing)
 
 and you're doing all of this in Python, then PMA.start and 
 pma_python are for you! 
