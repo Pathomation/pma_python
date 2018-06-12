@@ -1,5 +1,5 @@
 # pma_python
-pma_python is a Python wrapper library for PMA.start (http://www.free.pathomation.com), 
+pma_python is a Python wrapper library for PMA.start (http://free.pathomation.com), 
 a universal viewer by Pathomation for whole slide imaging and microscopy.
 
 YOU NEED TO HAVE PMA.START (OR PMA.CORE) RUNNING IN ORDER TO USE THIS
