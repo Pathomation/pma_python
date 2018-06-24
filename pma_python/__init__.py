@@ -1,1 +1,1 @@
-from .pma import *
+from .core import *
