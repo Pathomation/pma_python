@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.40"
+__version__ = "2.0.0.41"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -503,7 +503,7 @@ def get_thumbnail_image(slideRef, sessionID = None):
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
-def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None, format = "jpg", quality = 100): 
+def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, z-stack = 0, sessionID = None, format = "jpg", quality = 100): 
 	"""
 	Get a single tile at position (x, y)
 	Format can be 'jpg' or 'png'
@@ -521,7 +521,7 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None, format 
 		+ "?SessionID=" + _pma_q(sessionID)
 		+ "&channels=" + _pma_q("0")
 		+ "&timeframe=" + _pma_q("0")
-		+ "&layer=" + _pma_q("0")
+		+ "&layer=" + _pma_q(z-stack)
 		+ "&pathOrUid=" + _pma_q(slideRef)
 		+ "&x=" + _pma_q(x)
 		+ "&y=" + _pma_q(y)
@@ -535,7 +535,7 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, sessionID = None, format 
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
-def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, sessionID = None, format = "jpg", quality = 100):
+def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, z-stack = 0, sessionID = None, format = "jpg", quality = 100):
 	"""
 	Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom
 	Format can be 'jpg' or 'png'
@@ -551,7 +551,7 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 		toY = get_number_of_tiles(slideRef, zoomlevel, sessionID)[1]
 	for x in range(fromX, toX):
 		for y in range(fromY, toY):
-			yield get_tile(slideRef = slideRef, x = x, y = y, zoomlevel = zoomlevel, sessionID = sessionID, format = format, quality = quality)
+			yield get_tile(slideRef = slideRef, x = x, y = y, z-stack = z-stack, zoomlevel = zoomlevel, sessionID = sessionID, format = format, quality = quality)
 			
 def show_slide(slideRef, sessionID = None):
 	"""Launch the default webbrowser and load a web-based viewer for the slide"""
