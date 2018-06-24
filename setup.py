@@ -8,7 +8,7 @@ def read(file_name):
 
 
 setup(name='pma_python',
-      version='2.0.0.41',
+      version='2.0.0.42',
       description='Universal viewing of digital microscopy, whole slide imaging and digital pathology data',
       long_description=read('long_desc.txt'),
       url='http://github.com/pathomation/pma_python',
