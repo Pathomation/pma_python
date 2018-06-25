@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.43"
+__version__ = "2.0.0.44"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -43,6 +43,8 @@ def _pma_first_session_id():
 				# _pma_sessions[_pma_pmacoreliteSessionID] = _pma_pmacoreliteURL
 				
 				_pma_slideinfos[_pma_pmacoreliteSessionID] = dict()
+			if (not  _pma_pmacoreliteSessionID in _pma_amount_of_data_downloaded):
+				_pma_amount_of_data_downloaded[_pma_pmacoreliteSessionID] = 0
 			return _pma_pmacoreliteSessionID
 		else:
 			# no stored PMA.core sessions found NOR PMA.core.lite
@@ -305,7 +307,7 @@ def get_tile_size(sessionID = None):
 	if (len(_pma_slideinfos[sessionID]) < 1):
 		dir = get_first_non_empty_directory(sessionID)
 		slides = get_slides(dir, sessionID)
-		info = get_slide_info(sessionID, slides[0])
+		info = get_slide_info(slides[0], sessionID)
 	else:
 		info = choice(list(_pma_slideinfos[sessionID].values()))
 		
