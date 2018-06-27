@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 import requests
 
-__version__ = "2.0.0.44"
+__version__ = "2.0.0.45"
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -325,7 +325,6 @@ def get_slide_info(slideRef, sessionID = None):
 
 	if (not (slideRef in _pma_slideinfos[sessionID])):
 		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + _pma_q(sessionID) +  "&pathOrUid=" + _pma_q(slideRef)
-		print(url);
 		r = requests.get(url)
 		json = r.json()
 		global _pma_amount_of_data_downloaded 
@@ -437,7 +436,10 @@ def get_number_of_layers(slideRef, sessionID = None):
 	info = get_slide_info(slideRef, sessionID)
 	layers = info["TimeFrames"][0]["Layers"]
 	return len(layers)
-	
+
+def get_number_of_z_stack_layers(slideRef, sessionID = None):
+ 	return get_number_of_layers(slideRef, sessionID)
+
 def is_fluorescent(slideRef, sessionID = None):
 	"""Determine whether a slide is a fluorescent image or not"""
 	return get_number_of_channels(slideRef, sessionID) > 1
@@ -471,6 +473,7 @@ def get_barcode_url(slideRef, sessionID = None):
 
 def get_barcode_image(slideRef, sessionID = None):
 	"""Get the barcode (alias for "label") image for a slide"""
+	sessionID = _pma_session_id(sessionID)
 	r = requests.get(get_barcode_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
@@ -483,6 +486,7 @@ def get_label_url(slideRef, sessionID = None):
 	
 def get_label_image(slideRef, sessionID = None):
 	"""Get the label image for a slide"""
+	sessionID = _pma_session_id(sessionID)
 	r = requests.get(get_label_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
@@ -499,7 +503,9 @@ def get_thumbnail_url(slideRef, sessionID = None):
 	
 def get_thumbnail_image(slideRef, sessionID = None):
 	"""Get the thumbnail image for a slide"""
-	r = requests.get(get_thumbnail_url(slideRef, sessionID))
+	sessionID = _pma_session_id(sessionID)
+	url = get_thumbnail_url(slideRef, sessionID)
+	r = requests.get(url)
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
@@ -523,14 +529,15 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, zstack = 0, sessionID = N
 		+ "?SessionID=" + _pma_q(sessionID)
 		+ "&channels=" + _pma_q("0")
 		+ "&timeframe=" + _pma_q("0")
-		+ "&layer=" + _pma_q(zstack)
+		+ "&layer=" + str(int(round(zstack)))
 		+ "&pathOrUid=" + _pma_q(slideRef)
-		+ "&x=" + _pma_q(x)
-		+ "&y=" + _pma_q(y)
-		+ "&z=" + _pma_q(zoomlevel)	
+		+ "&x=" + str(int(round(x)))
+		+ "&y=" + str(int(round(y)))
+		+ "&z=" + str(int(round(zoomlevel)))
 		+ "&format=" + _pma_q(format)
 		+ "&quality=" + _pma_q(quality)
 		+ "&cache=" + str(_pma_usecachewhenretrievingtiles).lower())
+
 	r = requests.get(url)
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
@@ -574,4 +581,3 @@ def show_slide(slideRef, sessionID = None):
 			+ "?sessionID=" + _pma_q(sessionID)
 			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
 	os.system(os_cmd+url)
-6
