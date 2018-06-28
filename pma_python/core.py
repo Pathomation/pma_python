@@ -6,10 +6,11 @@ from io import BytesIO
 from urllib.parse import quote
 from urllib.request import urlopen
 from xml.dom import minidom
+from pma_python import pma
 
 import requests
 
-__version__ = "2.0.0.45"
+__version__ = pma.__version__
 
 # internal module helper variables and functions
 _pma_sessions = dict()
@@ -68,7 +69,7 @@ def _pma_url(sessionID = None):
 			raise Exception("Invalid sessionID:", sessionID)
 
 def _pma_is_lite(pmacoreURL = _pma_pmacoreliteURL):
-	url = _pma_join(pmacoreURL, "api/xml/IsLite")
+	url = pma._pma_join(pmacoreURL, "api/xml/IsLite")
 	try:
 		contents = urlopen(url).read()
 	except Exception as e:
@@ -85,17 +86,10 @@ def _pma_api_url(sessionID = None, xml = True):
 		return None
 	# remember, _pma_url is guaranteed to return a URL that ends with "/"
 	if (xml == True):
-		return _pma_join(url, "api/xml/")
+		return pma._pma_join(url, "api/xml/")
 	else:
-		return _pma_join(url, "api/json/")
-	
-def _pma_join(*s):
-	joinstring = ""
-	for ss in s:
-		if not (ss is None):
-			joinstring = os.path.join(joinstring, ss)
-	return joinstring.replace("\\", "/")
-	
+		return pma._pma_join(url, "api/json/")
+		
 def _pma_XmlToStringArray(root, limit = 0):
 	els = root.getElementsByTagName("string")
 	l = []
@@ -127,7 +121,7 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	"""
 	# purposefully DON'T use helper function _pma_api_url() here:
 	# why? because GetVersionInfo can be invoked WITHOUT a valid SessionID; _pma_api_url() takes session information into account
-	url = _pma_join(pmacoreURL, "api/xml/GetVersionInfo")
+	url = pma._pma_join(pmacoreURL, "api/xml/GetVersionInfo")
 	try:
 		contents = urlopen(url).read()
 	except Exception as e:
@@ -148,7 +142,7 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 			
 	# purposefully DON'T use helper function _pma_api_url() here:	
 	# why? Because_pma_api_url() takes session information into account (which we don't have yet)
-	url = _pma_join(pmacoreURL, "api/xml/authenticate?caller=SDK.Python") 
+	url = pma._pma_join(pmacoreURL, "api/xml/authenticate?caller=SDK.Python") 
 	if (pmacoreUsername != ""):
 		url += "&username=" + _pma_q(pmacoreUsername)
 	if (pmacorePassword != ""):
