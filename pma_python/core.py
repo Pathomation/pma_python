@@ -575,3 +575,24 @@ def show_slide(slideRef, sessionID = None):
 			+ "?sessionID=" + _pma_q(sessionID)
 			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
 	os.system(os_cmd+url)
+	
+def enumerate_files_for_slide(slideRef, sessionID = None):
+	"""Obtain all files actually associated with a specific slide
+	This is most relevant with slides that are defined by multiple files, like MRXS or VSI"""
+	sessionID = _pma_session_id(sessionID)
+	
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]		
+	url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + _pma_q(sessionID) + "&pathOrUid=" + _pma_q(slideRef)	
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("get_slides from " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+	elif ("d" in json):
+		files  = json["d"]
+	else:
+		files = json
+	return files
+	
