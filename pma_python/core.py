@@ -284,6 +284,25 @@ def get_uid(slideRef, sessionID = None):
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom)[0]
 	
+def get_fingerprint(slideRef, strict = False, sessionID = None):
+	"""
+	Get the fingerprint for a specific slide 
+	"""
+	sessionID = _pma_session_id(sessionID)
+	url = _pma_api_url(sessionID, False) + "GetFingerprint?sessionID=" + _pma_q(sessionID) + "&strict=" + _pma_q(str(strict)) + "&pathOrUid=" + _pma_q(slideRef)
+
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("get_fingerprint on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+	elif ("d" in json):
+		fingerprint  = json["d"]
+	else:
+		fingerprint = json
+	return fingerprint
+
 def who_am_i():
 	"""
 	Getting information about your Session (under construction)
