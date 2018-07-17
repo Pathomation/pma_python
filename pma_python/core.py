@@ -589,7 +589,7 @@ def enumerate_files_for_slide(slideRef, sessionID = None):
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(json)
 	if ("Code" in json):
-		raise Exception("get_slides from " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+		raise Exception("enumerate_files_for_slide on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
 	elif ("d" in json):
 		files  = json["d"]
 	else:
