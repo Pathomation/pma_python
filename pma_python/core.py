@@ -101,12 +101,6 @@ def _pma_XmlToStringArray(root, limit = 0):
 			l.append(el.firstChild.nodeValue)
 	return l
 	
-def _pma_q(arg):
-	if (arg is None):
-		return ''
-	else:
-		return quote(str(arg), safe='')
-	
 # end internal module helper variables and functions
 	
 def is_lite(pmacoreURL = _pma_pmacoreliteURL):
@@ -144,9 +138,9 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	# why? Because_pma_api_url() takes session information into account (which we don't have yet)
 	url = pma._pma_join(pmacoreURL, "api/xml/authenticate?caller=SDK.Python") 
 	if (pmacoreUsername != ""):
-		url += "&username=" + _pma_q(pmacoreUsername)
+		url += "&username=" + pma._pma_q(pmacoreUsername)
 	if (pmacorePassword != ""):
-		url += "&password=" + _pma_q(pmacorePassword)
+		url += "&password=" + pma._pma_q(pmacorePassword)
 	
 	try:
 		contents = urlopen(url).read()
@@ -178,7 +172,7 @@ def disconnect(sessionID = None):
 	Attempt to connect to PMA.core instance; success results in a SessionID
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + _pma_q((sessionID))
+	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + pma._pma_q((sessionID))
 	contents = urlopen(url).read()
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(contents)
@@ -194,7 +188,7 @@ def get_root_directories(sessionID = None):
 	Return an array of root-directories available to sessionID
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID) + "GetRootDirectories?sessionID=" + _pma_q((sessionID))
+	url = _pma_api_url(sessionID) + "GetRootDirectories?sessionID=" + pma._pma_q((sessionID))
 	contents = urlopen(url).read()
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(contents)
@@ -206,7 +200,7 @@ def get_directories(startDir, sessionID = None):
 	Return an array of sub-directories available to sessionID in the startDir directory
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID, False) + "GetDirectories?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)
+	url = _pma_api_url(sessionID, False) + "GetDirectories?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
@@ -247,7 +241,7 @@ def get_slides(startDir, sessionID = None):
 	sessionID = _pma_session_id(sessionID)
 	if (startDir.startswith("/")):
 		startDir = startDir[1:]		
-	url = _pma_api_url(sessionID, False) + "GetFiles?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(startDir)	
+	url = _pma_api_url(sessionID, False) + "GetFiles?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)	
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
@@ -277,7 +271,7 @@ def get_uid(slideRef, sessionID = None):
 	Get the UID for a specific slide 
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID) + "GetUID?sessionID=" + _pma_q(sessionID) + "&path=" + _pma_q(slideRef)
+	url = _pma_api_url(sessionID) + "GetUID?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(slideRef)
 	contents = urlopen(url).read()
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(contents)
@@ -289,7 +283,7 @@ def get_fingerprint(slideRef, strict = False, sessionID = None):
 	Get the fingerprint for a specific slide 
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID, False) + "GetFingerprint?sessionID=" + _pma_q(sessionID) + "&strict=" + _pma_q(str(strict)) + "&pathOrUid=" + _pma_q(slideRef)
+	url = _pma_api_url(sessionID, False) + "GetFingerprint?sessionID=" + pma._pma_q(sessionID) + "&strict=" + pma._pma_q(str(strict)) + "&pathOrUid=" + pma._pma_q(slideRef)
 
 	r = requests.get(url)
 	json = r.json()
@@ -337,7 +331,7 @@ def get_slide_info(slideRef, sessionID = None):
 	global _pma_slideinfos
 
 	if (not (slideRef in _pma_slideinfos[sessionID])):
-		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + _pma_q(sessionID) +  "&pathOrUid=" + _pma_q(slideRef)
+		url = _pma_api_url(sessionID, False) + "GetImageInfo?SessionID=" + pma._pma_q(sessionID) +  "&pathOrUid=" + pma._pma_q(slideRef)
 		r = requests.get(url)
 		json = r.json()
 		global _pma_amount_of_data_downloaded 
@@ -480,8 +474,8 @@ def get_barcode_url(slideRef, sessionID = None):
 	"""Get the URL that points to the barcode (alias for "label") for a slide"""
 	sessionID = _pma_session_id(sessionID)
 	url = (_pma_url(sessionID) + "barcode"
-		+ "?SessionID=" + _pma_q(sessionID)
-		+ "&pathOrUid=" + _pma_q(slideRef))
+		+ "?SessionID=" + pma._pma_q(sessionID)
+		+ "&pathOrUid=" + pma._pma_q(slideRef))
 	return url
 
 def get_barcode_image(slideRef, sessionID = None):
@@ -510,8 +504,8 @@ def get_thumbnail_url(slideRef, sessionID = None):
 	"""Get the URL that points to the thumbnail for a slide"""
 	sessionID = _pma_session_id(sessionID)
 	url = (_pma_url(sessionID) + "thumbnail"
-		+ "?SessionID=" + _pma_q(sessionID)
-		+ "&pathOrUid=" + _pma_q(slideRef))
+		+ "?SessionID=" + pma._pma_q(sessionID)
+		+ "&pathOrUid=" + pma._pma_q(slideRef))
 	return url
 	
 def get_thumbnail_image(slideRef, sessionID = None):
@@ -539,16 +533,16 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, zstack = 0, sessionID = N
 		raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
 
 	url += ("tile"
-		+ "?SessionID=" + _pma_q(sessionID)
-		+ "&channels=" + _pma_q("0")
-		+ "&timeframe=" + _pma_q("0")
+		+ "?SessionID=" + pma._pma_q(sessionID)
+		+ "&channels=" + pma._pma_q("0")
+		+ "&timeframe=" + pma._pma_q("0")
 		+ "&layer=" + str(int(round(zstack)))
-		+ "&pathOrUid=" + _pma_q(slideRef)
+		+ "&pathOrUid=" + pma._pma_q(slideRef)
 		+ "&x=" + str(int(round(x)))
 		+ "&y=" + str(int(round(y)))
 		+ "&z=" + str(int(round(zoomlevel)))
-		+ "&format=" + _pma_q(format)
-		+ "&quality=" + _pma_q(quality)
+		+ "&format=" + pma._pma_q(format)
+		+ "&quality=" + pma._pma_q(quality)
 		+ "&cache=" + str(_pma_usecachewhenretrievingtiles).lower())
 
 	r = requests.get(url)
@@ -584,15 +578,15 @@ def show_slide(slideRef, sessionID = None):
 		os_cmd = "start "
 	
 	if (sessionID == _pma_pmacoreliteSessionID):
-		url = "http://free.pathomation.com/pma-view-lite/?path=" + _pma_q(slideRef)
+		url = "http://free.pathomation.com/pma-view-lite/?path=" + pma._pma_q(slideRef)
 	else:
 		url = _pma_url(sessionID)
 		if url is None:
 			raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
 		else:
 			url += ("viewer/index.htm"
-			+ "?sessionID=" + _pma_q(sessionID)
-			+ "^&pathOrUid=" + _pma_q(slideRef))    # note the ^& to escape a regular &
+			+ "?sessionID=" + pma._pma_q(sessionID)
+			+ "^&pathOrUid=" + pma._pma_q(slideRef))    # note the ^& to escape a regular &
 	os.system(os_cmd+url)
 	
 def enumerate_files_for_slide(slideRef, sessionID = None):
@@ -602,7 +596,7 @@ def enumerate_files_for_slide(slideRef, sessionID = None):
 	
 	if (slideRef.startswith("/")):
 		slideRef = slideRef[1:]		
-	url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + _pma_q(sessionID) + "&pathOrUid=" + _pma_q(slideRef)	
+	url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)	
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
