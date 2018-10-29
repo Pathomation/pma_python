@@ -66,7 +66,7 @@ def _pma_url(sessionID = None):
 				url = url + "/"
 			return url
 		else:
-			raise Exception("Invalid sessionID:", sessionID)
+			raise Exception("Invalid sessionID:" + str(sessionID))
 
 def _pma_is_lite(pmacoreURL = _pma_pmacoreliteURL):
 	url = pma._pma_join(pmacoreURL, "api/xml/IsLite")
@@ -487,6 +487,24 @@ def get_barcode_image(slideRef, sessionID = None):
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
+def get_barcode_text(slideRef, sessionID = None):
+	"""Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
+	sessionID = _pma_session_id(sessionID)
+	url = _pma_api_url(sessionID, False) + "GetBarcode?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("get_barcode_text on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+	elif ("d" in json):
+		barcode  = json["d"]
+	else:
+		barcode = json
+	return barcode
+
+	
 def get_label_url(slideRef, sessionID = None):
 	"""Get the URL that points to the label for a slide"""
 	return get_barcode_url(slideRef, sessionID)
@@ -530,7 +548,7 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, zstack = 0, sessionID = N
 
 	url = _pma_url(sessionID)
 	if url is None:
-		raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
+		raise Exception("Unable to determine the PMA.core instance belonging to " + str(sessionID))
 
 	url += ("tile"
 		+ "?SessionID=" + pma._pma_q(sessionID)
@@ -582,7 +600,7 @@ def show_slide(slideRef, sessionID = None):
 	else:
 		url = _pma_url(sessionID)
 		if url is None:
-			raise Exception("Unable to determine the PMA.core instance belonging to " + sessionID)
+			raise Exception("Unable to determine the PMA.core instance belonging to " + str(sessionID))
 		else:
 			url += ("viewer/index.htm"
 			+ "?sessionID=" + pma._pma_q(sessionID)
