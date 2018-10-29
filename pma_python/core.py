@@ -291,8 +291,6 @@ def get_fingerprint(slideRef, strict = False, sessionID = None):
 	_pma_amount_of_data_downloaded[sessionID] += len(json)
 	if ("Code" in json):
 		raise Exception("get_fingerprint on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
-	elif ("d" in json):
-		fingerprint  = json["d"]
 	else:
 		fingerprint = json
 	return fingerprint
@@ -491,17 +489,17 @@ def get_barcode_text(slideRef, sessionID = None):
 	"""Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID, False) + "GetBarcode?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
-
 	r = requests.get(url)
-	json = r.json()
-	global _pma_amount_of_data_downloaded 
-	_pma_amount_of_data_downloaded[sessionID] += len(json)
-	if ("Code" in json):
-		raise Exception("get_barcode_text on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
-	elif ("d" in json):
-		barcode  = json["d"]
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_barcode_text on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:
+			barcode = json
 	else:
-		barcode = json
+		barcode = ""
 	return barcode
 
 	
