@@ -42,6 +42,7 @@ The following vendor formats are currently supported:
 * Zoomify (.zif) with JPEG, JPEG2000, LZW, Deflate, Raw, RLE
 * SmartZoom	(.szi) with JPEG, BMP
 * Objective Imaging / Glissano (.sws)
+* Perkin Elmer (.qptiff)
 
 The most up to date list with supported file formats can be found at
 http://free.pathomation.com/formats

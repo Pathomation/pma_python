@@ -195,7 +195,7 @@ def get_root_directories(sessionID = None):
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom.firstChild)
 
-def get_directories(startDir, sessionID = None):
+def get_directories(startDir, sessionID = None, recursive = False):
 	"""
 	Return an array of sub-directories available to sessionID in the startDir directory
 	"""
@@ -211,6 +211,15 @@ def get_directories(startDir, sessionID = None):
 		dirs  = json["d"]
 	else:
 		dirs = json
+
+	# handle recursion, if so desired
+	if (type(recursive) == bool and recursive == True) or (type(recursive) == int and recursive > 0):
+		for dir in get_directories(startDir, sessionID):
+			if type(recursive) == bool:
+				dirs = dirs + get_directories(dir, sessionID, recursive)	
+			elif type(recursive) == int:
+				dirs = dirs + get_directories(dir, sessionID, recursive - 1)
+		
 	return dirs
 
 def get_first_non_empty_directory(startDir = None, sessionID = None):
@@ -234,7 +243,7 @@ def get_first_non_empty_directory(startDir = None, sessionID = None):
 					return nonEmtptyDir
 	return None
 
-def get_slides(startDir, sessionID = None):
+def get_slides(startDir, sessionID = None, recursive = False):
 	"""
 	Return an array of slides available to sessionID in the startDir directory
 	"""
@@ -252,6 +261,15 @@ def get_slides(startDir, sessionID = None):
 		slides  = json["d"]
 	else:
 		slides = json
+
+	# handle recursion, if so desired
+	if (type(recursive) == bool and recursive == True) or (type(recursive) == int and recursive > 0):
+		for dir in get_directories(startDir, sessionID):
+			if type(recursive) == bool:
+				slides = slides + get_slides(dir, sessionID, recursive)	
+			elif type(recursive) == int:
+				slides = slides + get_slides(dir, sessionID, recursive - 1)
+				
 	return slides
 
 def get_slide_file_extension(slideRef):
@@ -488,7 +506,7 @@ def get_barcode_image(slideRef, sessionID = None):
 def get_barcode_text(slideRef, sessionID = None):
 	"""Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID, False) + "GetBarcode?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+	url = _pma_api_url(sessionID, False) + "GetBarcodeText?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 	r = requests.get(url)
 	if ( (not (r.text is None)) and (len(r.text) > 0) ):
 		json = r.json()
