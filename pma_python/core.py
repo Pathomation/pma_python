@@ -599,6 +599,138 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, zstack = 0, sessionID = N
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
 
+def get_submitted_forms(slideRef, sessionID = None):
+	"""Find out what forms where submitted for a specific slide"""
+	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
+	url = _pma_api_url(sessionID, False) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+	all_forms = get_available_forms(slideRef, sessionID)
+	print(url)
+	r = requests.get(url)
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_available_forms on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:			
+			data = json
+			forms = {}
+			for entry in data:
+				if (not (entry["FormID"] in forms)):
+					forms[entry["FormID"]] = all_forms[entry["FormID"]]
+			# should probably do some post-processing here, but unsure what that would actually be??
+	else:
+		forms = ""
+	return forms
+	
+def get_submitted_form_data(slideRef, sessionID = None):
+	"""Get all submitted form data associated with a specific slide"""
+	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
+	url = _pma_api_url(sessionID, False) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+	print(url)
+	r = requests.get(url)
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_available_forms on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:
+			data = json
+			# should probably do some post-processing here, but unsure what that would actually be??
+	else:
+		data = ""
+	return data
+	
+def get_available_forms(slideRef = None, sessionID = None):
+	"""
+	See what forms are available to fill out, either system-wide (leave slideref to None), or for a particular slide
+	"""
+	sessionID = _pma_session_id(sessionID)
+	if (not slideRef == None):
+		if (slideRef.startswith("/")):
+			slideRef = slideRef[1:]
+		dir = os.path.split(slideRef)[0]
+		url = _pma_api_url(sessionID, False) + "GetForms?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(dir)
+	else:
+		url = _pma_api_url(sessionID, False) + "GetForms?sessionID=" + pma._pma_q(sessionID)
+	
+	r = requests.get(url)
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_available_forms on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:
+			forms_json = json
+			forms = {}
+			for entry in forms_json:
+				forms[entry["Key"]] = entry["Value"]
+	else:
+		forms = ""
+	return forms
+
+def prepare_form_dictionary(formID, sessionID = None):
+	"""Prepare a form-dictionary that can be used later on to submit new form data for a slide"""
+	if (formID == None):
+		return None
+	sessionID = _pma_session_id(sessionID)
+	url = _pma_api_url(sessionID, False) + "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
+	r = requests.get(url)
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_available_forms on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:
+			forms_json = json
+			form_def = {}
+			for form in forms_json:
+				if ( (form["FormID"] == formID) or (form["FormName"] == formID) ):
+					for field in form["FormFields"]:
+						form_def[field["Label"]] = None
+	else:
+		form_def = ""
+	return form_def
+	
+	
+def submit_form_data(slideRef, formID, formDict, sessionID = None):
+	"""Not implemented yet"""
+	sessionID = _pma_session_id(sessionID)
+	if (not slideRef == None):
+		if (slideRef.startswith("/")):
+			slideRef = slideRef[1:]
+	return None
+	
+def get_annotations(slideRef, sessionID = None):
+	"""
+	Retrieve the annotations for slide slideRef
+	"""
+	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
+	dir = os.path.split(slideRef)[0]
+	url = _pma_api_url(sessionID, False) + "GetAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+
+	r = requests.get(url)
+	if ( (not (r.text is None)) and (len(r.text) > 0) ):
+		json = r.json()
+		global _pma_amount_of_data_downloaded 
+		_pma_amount_of_data_downloaded[sessionID] += len(json)
+		if ("Code" in json):
+			raise Exception("get_annotations() on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		else:
+			annotations = json
+	else:
+		annotations = ""
+	return annotations
+	
 def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, zstack = 0, sessionID = None, format = "jpg", quality = 100):
 	"""
 	Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom
