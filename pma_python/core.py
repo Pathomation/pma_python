@@ -489,6 +489,8 @@ def get_magnification(slideRef, zoomlevel = None, exact = False, sessionID = Non
 def get_barcode_url(slideRef, sessionID = None):
 	"""Get the URL that points to the barcode (alias for "label") for a slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	url = (_pma_url(sessionID) + "barcode"
 		+ "?SessionID=" + pma._pma_q(sessionID)
 		+ "&pathOrUid=" + pma._pma_q(slideRef))
@@ -497,6 +499,8 @@ def get_barcode_url(slideRef, sessionID = None):
 def get_barcode_image(slideRef, sessionID = None):
 	"""Get the barcode (alias for "label") image for a slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	r = requests.get(get_barcode_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
@@ -506,6 +510,8 @@ def get_barcode_image(slideRef, sessionID = None):
 def get_barcode_text(slideRef, sessionID = None):
 	"""Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	url = _pma_api_url(sessionID, False) + "GetBarcodeText?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 	r = requests.get(url)
 	if ( (not (r.text is None)) and (len(r.text) > 0) ):
@@ -528,6 +534,8 @@ def get_label_url(slideRef, sessionID = None):
 def get_label_image(slideRef, sessionID = None):
 	"""Get the label image for a slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	r = requests.get(get_label_url(slideRef, sessionID))
 	img = Image.open(BytesIO(r.content))
 	global _pma_amount_of_data_downloaded 
@@ -537,6 +545,8 @@ def get_label_image(slideRef, sessionID = None):
 def get_thumbnail_url(slideRef, sessionID = None):
 	"""Get the URL that points to the thumbnail for a slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	url = (_pma_url(sessionID) + "thumbnail"
 		+ "?SessionID=" + pma._pma_q(sessionID)
 		+ "&pathOrUid=" + pma._pma_q(slideRef))
@@ -545,6 +555,8 @@ def get_thumbnail_url(slideRef, sessionID = None):
 def get_thumbnail_image(slideRef, sessionID = None):
 	"""Get the thumbnail image for a slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	url = get_thumbnail_url(slideRef, sessionID)
 	r = requests.get(url)
 	img = Image.open(BytesIO(r.content))
@@ -559,6 +571,8 @@ def get_tile(slideRef, x = 0, y = 0, zoomlevel = None, zstack = 0, sessionID = N
 	Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
 	"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
 
@@ -592,6 +606,8 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 	Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
 	"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 
 	if (zoomlevel is None):
 		zoomlevel = 0   # get_max_zoomlevel(slideRef, sessionID)
@@ -606,6 +622,8 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 def show_slide(slideRef, sessionID = None):
 	"""Launch the default webbrowser and load a web-based viewer for the slide"""
 	sessionID = _pma_session_id(sessionID)
+	if (slideRef.startswith("/")):
+		slideRef = slideRef[1:]
 	if (os.name == "posix"):
 		os_cmd = "open "
 	else:
