@@ -1,7 +1,7 @@
 from urllib.parse import quote
 from os.path import join
 
-__version__ = "2.0.0.59"
+__version__ = "2.0.0.60"
 
 def _pma_join(*s):
 	joinstring = ""
