@@ -1,6 +1,6 @@
 import os
 from setuptools import setup
-
+from pma_python import pma
 
 def read(file_name):
     with open(os.path.join(os.path.dirname(__file__), file_name)) as f:
@@ -8,7 +8,7 @@ def read(file_name):
 
 
 setup(name='pma_python',
-      version='2.0.0.58',
+      version=pma.__version__,
       description='Universal viewing of digital microscopy, whole slide imaging and digital pathology data',
       long_description=read('long_desc.txt'),
       url='http://github.com/pathomation/pma_python',
