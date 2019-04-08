@@ -4,9 +4,9 @@ from pma_python import core, pma
 
 __version__ = pma.__version__
 
-_pma_casecollections_json = {}
-_pma_projects_json = {} 
-_pma_session_json = {}
+_pma_casecollections_json = {}	# reserved for future use
+_pma_projects_json = {} 		# reserved for future use
+_pma_session_json = {}			# reserved for future use
 
 def get_version_info(pmacontrolURL):
 	"""
@@ -21,7 +21,7 @@ def get_version_info(pmacontrolURL):
 		return None		
 	return r.json()
 
-def get_sessions(pmacontrolURL, pmacoreSessionID):
+def _pma_get_sessions(pmacontrolURL, pmacoreSessionID):
 	"""
 	Retrieve a list of currently defined training sessions in PMA.control.
 	"""
@@ -41,7 +41,7 @@ def get_session_ids(pmacontrolURL, pmacoreSessionID):
 	therefore this method is easier to quickly retrieve and represent session-related data. 
 	However, this method returns less verbose data than get_sessions()
 	"""
-	full_sessions = get_sessions(pmacontrolURL, pmacoreSessionID)
+	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
 	new_session_dict = {}
 	for sess in full_sessions:
 		sess_data = {
@@ -54,6 +54,29 @@ def get_session_ids(pmacontrolURL, pmacoreSessionID):
 		new_session_dict[sess["Id"]] = sess_data
 	return new_session_dict
 	
+def get_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+	"""
+	Retrieve sessions (possibly filtered by project ID), titles only
+	"""
+	try:
+		return list(get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID).values())
+	except Exception as e:
+		return None		
+	
+def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+	"""
+	Retrieve case collections (possibly filtered by project ID), return a dictionary of case collection IDs and titles
+	"""
+	dct = {}
+	all_sess = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	for sess in all_sess:
+		if pmacontrolProjectID == None:
+			dct[sess["Id"]] = sess["Title"]
+		elif pmacontrolProjectID == sess["ModuleId"]:
+			dct[sess["Id"]] = sess["Title"]
+
+	return dct
+
 def _pma_get_case_collections(pmacontrolURL, pmacoreSessionID):
 	"""
 	Retrieve all the data for all the defined case collections in PMA.control
@@ -62,16 +85,13 @@ def _pma_get_case_collections(pmacontrolURL, pmacoreSessionID):
 	global _pma_casecollections_json
 	
 	url = pma._pma_join(pmacontrolURL, "api/CaseCollections?sessionID=" + pma._pma_q(pmacoreSessionID))
-	if not (url in _pma_casecollections_json):
-		print (url)
-		try:
-			headers = {'Accept': 'application/json'}
-			r = requests.get(url, headers=headers)
-			_pma_casecollections_json[url] = r.json()
-		except Exception as e:
-			return None		
-
-	return _pma_casecollections_json[url]
+	print (url)
+	try:
+		headers = {'Accept': 'application/json'}
+		r = requests.get(url, headers=headers)
+		return r.json()
+	except Exception as e:
+		return None		
 
 def get_case_collection_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
@@ -125,16 +145,13 @@ def _pma_get_projects(pmacontrolURL, pmacoreSessionID):
 	global _pma_projects_json
 	
 	url = pma._pma_join(pmacontrolURL, "api/Projects?sessionID=" + pma._pma_q(pmacoreSessionID))
-	if not (url in _pma_projects_json):
-		print (url)
-		try:
-			headers = {'Accept': 'application/json'}
-			r = requests.get(url, headers=headers)
-		except Exception as e:
-			return None		
-		_pma_projects_json[url] = r.json()
-		
-	return _pma_projects_json[url]
+	print (url)
+	try:
+		headers = {'Accept': 'application/json'}
+		r = requests.get(url, headers=headers)
+		return r.json()
+	except Exception as e:
+		return None		
 
 def get_project_titles(pmacontrolURL, pmacoreSessionID):
 	"""
