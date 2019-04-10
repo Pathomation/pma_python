@@ -2,7 +2,7 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.66"
+__version__ = "2.0.0.67"
 
 _pma_url_content = {}
 
@@ -28,3 +28,7 @@ def _pma_http_get(url, headers):
 		_pma_url_content[url] = r
 	
 	return _pma_url_content[url]
+	
+def _pma_clear_url_cache():
+	global _pma_url_content
+	_pma_url_content = {}
