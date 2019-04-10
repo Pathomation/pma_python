@@ -34,7 +34,26 @@ def _pma_get_sessions(pmacontrolURL, pmacoreSessionID):
 		return None		
 	return r.json()
 
-def get_session_ids(pmacontrolURL, pmacoreSessionID):
+def _pma_format_session_properly(sess):
+	"""
+	Helper method to convert a JSON representation of a PMA.control training session to a proper Python-esque structure
+	"""
+	sess_data = {
+		"Id": sess["Id"],
+		"Title": sess["Title"],
+		"LogoPath": sess["LogoPath"],
+		"StartsOn": sess["StartsOn"],
+		"EndsOn": sess["EndsOn"],
+		"ProjectId": sess["ModuleId"],
+		"State": sess["State"],
+		"CaseCollections": {}
+	}
+	for coll in sess["CaseCollections"]:
+		sess_data["CaseCollections"][coll["Id"]] = coll["Title"]
+
+	return sess_data
+
+def get_sessions(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
 	Retrieve a dictionary with currently defined training sessions in PMA.control.
 	The resulting dictionary use the session's identifier as the dictionary key, and 
@@ -44,15 +63,42 @@ def get_session_ids(pmacontrolURL, pmacoreSessionID):
 	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
 	new_session_dict = {}
 	for sess in full_sessions:
-		sess_data = {
-			"LogoPath": sess["LogoPath"],
-			"StartsOn": sess["StartsOn"],
-			"EndsOn": sess["EndsOn"],
-			"ModuleId": sess["ModuleId"],
-			"State": sess["State"]
-		}
-		new_session_dict[sess["Id"]] = sess_data
+		if (pmacontrolProjectID is None) or (pmacontrolProjectID == sess["ModuleId"]):				
+			new_session_dict[sess["Id"]] = _pma_format_session_properly(sess)
 	return new_session_dict
+
+def get_sessions_for_participant(pmacontrolURL, pmacoreUsername, pmacoreSessionID):
+	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	new_session_dict = {}
+	for sess in full_sessions:
+		for part in sess["Participants"]:
+			if (part["User"].lower() == pmacoreUsername.lower()):
+				s = _pma_format_session_properly(sess)
+				s["Role"] = part["Role"]
+				new_session_dict[sess["Id"]] = s
+
+	return new_session_dict
+
+def get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID):
+	"""
+	Extract the participants in a particular session
+	"""
+	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	user_dict = {}
+	for sess in full_sessions:
+		if sess["Id"] == pmacontrolSessionID:
+			for part in sess["Participants"]:
+				user_dict[part["User"]] = part["Role"]
+			return user_dict
+
+	return None
+
+def is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
+	"""
+	Check to see if a specific user participates in a specific session
+	"""
+	all_parts = get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID)
+	return pmacoreUsername in all_parts
 	
 def get_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
@@ -65,11 +111,11 @@ def get_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	
 def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
-	Retrieve case collections (possibly filtered by project ID), return a dictionary of case collection IDs and titles
+	Retrieve (training) sessions (possibly filtered by project ID), return a dictionary of session IDs and titles
 	"""
 	dct = {}
-	all_sess = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
-	for sess in all_sess:
+	all = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	for sess in all:
 		if pmacontrolProjectID == None:
 			dct[sess["Id"]] = sess["Title"]
 		elif pmacontrolProjectID == sess["ModuleId"]:
@@ -77,6 +123,20 @@ def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID
 
 	return dct
 
+	
+def search_session(pmacontrolURL, titleSubstring, pmacoreSessionID):
+	"""
+	Return the first (training) session that has titleSubstring as part of its string; search is case insensitive
+	"""
+	all = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+
+	for el in all:
+		if titleSubstring.lower() in el['Title'].lower():
+			# summarize session-related information so that it makes sense
+			return _pma_format_session_properly(el)
+
+	return None
+	
 def _pma_get_case_collections(pmacontrolURL, pmacoreSessionID):
 	"""
 	Retrieve all the data for all the defined case collections in PMA.control
