@@ -1,7 +1,8 @@
 from urllib.parse import quote
 from os.path import join
+import requests
 
-__version__ = "2.0.0.65"
+__version__ = "2.0.0.66"
 
 _pma_url_content = {}
 
