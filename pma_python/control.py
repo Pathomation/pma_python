@@ -124,7 +124,23 @@ def get_session_url(pmacontrolURL, pmacontrolSessionID, pmacontrolCase, pmacoreS
 		return pma._pma_join(pmacontrolURL, "training/training/") + pmacontrolSessionID + "?SessionID=" + pmacoreSessionID
 	else:
 		return pma._pma_join(pmacontrolURL, "training/training/") + pmacontrolSessionID + "?SessionID=" + pmacoreSessionID
-	
+
+def get_all_participants(pmacontrolURL, pmacoreSessionID):
+	"""
+	Get a list of all participants registered across all sessions, include the Role they play
+	"""
+	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	user_dict = {}
+	for sess in full_sessions:
+		s = _pma_format_session_properly(sess)
+		for part in sess["Participants"]:
+			if not (part["User"] in user_dict):
+				user_dict[part["User"]] = {}
+			user_dict[part["User"]][sess["Id"]] = s
+			user_dict[part["User"]][sess["Id"]]["Role"] = part["Role"]
+
+	return user_dict
+
 def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolRole, pmacontrolInteractionMode, pmacoreSessionID):
 	"""
 	Registers a particpant for a given session
