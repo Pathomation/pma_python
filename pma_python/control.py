@@ -60,13 +60,13 @@ def _pma_format_session_properly(sess):
 		"LogoPath": sess["LogoPath"],
 		"StartsOn": sess["StartsOn"],
 		"EndsOn": sess["EndsOn"],
-		"ProjectId": sess["ModuleId"],
+		"ProjectId": sess["ProjectId"],
 		"State": sess["State"],
 		"CaseCollections": {},
 		"NumberOfParticipants": len(sess["Participants"])
 	}
 	for coll in sess["CaseCollections"]:
-		sess_data["CaseCollections"][coll["Id"]] = coll["Title"]
+		sess_data["CaseCollections"][coll["Id"]] = { "Title": coll["Title"], "Url": coll["Url"] }
 
 	return sess_data
 
@@ -80,7 +80,7 @@ def get_sessions(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
 	new_session_dict = {}
 	for sess in full_sessions:
-		if (pmacontrolProjectID is None) or (pmacontrolProjectID == sess["ModuleId"]):				
+		if (pmacontrolProjectID is None) or (pmacontrolProjectID == sess["ProjectId"]):				
 			new_session_dict[sess["Id"]] = _pma_format_session_properly(sess)
 	return new_session_dict
 
@@ -146,7 +146,7 @@ def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolS
 	Registers a particpant for a given session
 	"""
 	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/Participants?SessionID=" + pmacoreSessionID
-	data = { "UserName": pmacoreUsername, "Role": pmacontrolRole, "InteractionMode": pmacontrolInteractionMode }
+	data = { "UserName": pmacoreUsername, "Role": pmacontrolRole}   # default interaction mode = Locked
 	data = parse.urlencode(data).encode()
 	req =  request.Request(url=url, data=data) # this makes the method "POST"
 	resp = request.urlopen(req)
@@ -172,7 +172,7 @@ def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID
 	for sess in all:
 		if pmacontrolProjectID == None:
 			dct[sess["Id"]] = sess["Title"]
-		elif pmacontrolProjectID == sess["ModuleId"]:
+		elif pmacontrolProjectID == sess["ProjectId"]:
 			dct[sess["Id"]] = sess["Title"]
 
 	return dct
@@ -225,7 +225,7 @@ def get_case_collection_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreS
 	for coll in all_colls:
 		if pmacontrolProjectID == None:
 			dct[coll["Id"]] = coll["Title"]
-		elif pmacontrolProjectID == coll["ModuleId"]:
+		elif pmacontrolProjectID == coll["ProjectId"]:
 			dct[coll["Id"]] = coll["Title"]
 
 	return dct
@@ -240,7 +240,25 @@ def get_case_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessio
 			return coll
 
 	return None
-	
+
+def get_cases_for_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessionID):
+	"""
+	Retrieve cases for a specific collection
+	"""
+	return get_case_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessionID)["Cases"]
+
+def search_collection(pmacontrolURL, titleSubstring, pmacoreSessionID):
+	"""
+	Return the first collection that has titleSubstring as part of its string; search is case insensitive
+	"""
+	all_colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
+	for coll in all_colls:
+		if titleSubstring.lower() in coll['Title'].lower():
+			# summary session-related information so that it makes sense
+			return coll
+
+	return None
+
 def _pma_format_project_embedded_sessions_properly(original_project_sessions):
 	"""
 	Helper method to convert a list of sessions with default arguments into a summarized dictionary
@@ -306,7 +324,7 @@ def get_project(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 			colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
 			prj['CaseCollections'] = {}
 			for col in colls:
-				if col['ModuleId'] == prj['Id']:
+				if col['ProjectId'] == prj['Id']:
 					prj['CaseCollections'][col['Id']] = col['Title']
 					
 			return prj
@@ -321,7 +339,7 @@ def get_project_by_case_id(pmacontrolURL, pmacontrolCaseID, pmacoreSessionID):
 	for coll in all_colls:
 		for case in coll["Cases"]:
 			if case["Id"] == pmacontrolCaseID:
-				return get_project(pmacontrolURL, coll["ModuleId"], pmacoreSessionID)
+				return get_project(pmacontrolURL, coll["ProjectId"], pmacoreSessionID)
 
 	return None
 	
@@ -332,7 +350,7 @@ def get_project_by_case_collection_id(pmacontrolURL, pmacontrolCaseCollectionID,
 	all_colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
 	for coll in all_colls:
 		if coll["Id"] == pmacontrolCaseCollectionID:
-			return get_project(pmacontrolURL, coll["ModuleId"], pmacoreSessionID)
+			return get_project(pmacontrolURL, coll["ProjectId"], pmacoreSessionID)
 
 	return None
 
@@ -351,7 +369,7 @@ def search_project(pmacontrolURL, titleSubstring, pmacoreSessionID):
 			colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
 			prj['CaseCollections'] = {}
 			for col in colls:
-				if col['ModuleId'] == prj['Id']:
+				if col['ProjectId'] == prj['Id']:
 					prj['CaseCollections'][col['Id']] = col['Title']
 					
 			return prj
