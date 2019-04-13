@@ -66,7 +66,7 @@ def _pma_format_session_properly(sess):
 		"NumberOfParticipants": len(sess["Participants"])
 	}
 	for coll in sess["CaseCollections"]:
-		sess_data["CaseCollections"][coll["Id"]] = { "Title": coll["Title"], "Url": coll["Url"] }
+		sess_data["CaseCollections"][coll["CaseCollectionId"]] = { "Title": coll["Title"], "Url": coll["Url"] }
 
 	return sess_data
 
@@ -141,17 +141,33 @@ def get_all_participants(pmacontrolURL, pmacoreSessionID):
 
 	return user_dict
 
-def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolRole, pmacontrolInteractionMode, pmacoreSessionID):
+def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolRole, pmacoreSessionID):
 	"""
 	Registers a particpant for a given session
 	"""
+	if is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
+		raise NameError ("PMA.core user " + pmacoreUsername + " is ALREADY registered in PMA.control training session " + str(pmacontrolSessionID))
 	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/Participants?SessionID=" + pmacoreSessionID
 	data = { "UserName": pmacoreUsername, "Role": pmacontrolRole}   # default interaction mode = Locked
 	data = parse.urlencode(data).encode()
 	req =  request.Request(url=url, data=data) # this makes the method "POST"
 	resp = request.urlopen(req)
 	pma._pma_clear_url_cache()
-	print(resp)
+	return resp
+	
+def set_participant_interactionmode(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolCaseCollectionID, pmacontrolInteractionMode, pmacoreSessionID):
+	"""
+	Assign an interaction mode to a particpant for a given Case Collection with in a session
+	"""
+	if not is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
+		raise NameError ("PMA.core user " + pmacoreUsername + " is NOT registered in PMA.control training session " + str(pmacontrolSessionID))
+	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/InteractionMode?SessionID=" + pmacoreSessionID
+	data = { "UserName": pmacoreUsername, "CaseCollectionId": pmacontrolCaseCollectionID, "InteractionMode": pmacontrolInteractionMode }   
+	data = parse.urlencode(data).encode()
+	req =  request.Request(url=url, data=data) # this makes the method "POST"
+	resp = request.urlopen(req)
+	pma._pma_clear_url_cache()
+	return resp
 	
 def get_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
