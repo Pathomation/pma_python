@@ -100,22 +100,25 @@ def get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionI
 	"""
 	Extract the participants in a particular session
 	"""
-	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
-	user_dict = {}
-	for sess in full_sessions:
-		if sess["Id"] == pmacontrolSessionID:
-			for part in sess["Participants"]:
-				user_dict[part["User"]] = part["Role"]
-			return user_dict
-
-	return None
+	url = pma._pma_join(pmacontrolURL, "api/Sessions/" + str(pmacontrolSessionID) + "/Participants?sessionID=" + pma._pma_q(pmacoreSessionID))
+	try:
+		headers = {'Accept': 'application/json'}
+		# r = requests.get(url, headers=headers)
+		r = pma._pma_http_get(url, headers)
+	except Exception as e:
+		print(e)
+		return None
+	parts = {}
+	for part in r.json():
+		parts[part['User']] = part
+	return parts
 
 def is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
 	"""
 	Check to see if a specific user participates in a specific session
 	"""
 	all_parts = get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID)
-	return pmacoreUsername in all_parts
+	return pmacoreUsername in all_parts.keys()
 
 def get_session_url(pmacontrolURL, pmacontrolSessionID, pmacontrolCase, pmacoreSessionID):
 	if pmacontrolCase == None:
@@ -134,11 +137,10 @@ def get_all_participants(pmacontrolURL, pmacoreSessionID):
 	for sess in full_sessions:
 		s = _pma_format_session_properly(sess)
 		for part in sess["Participants"]:
-			if not (part["User"] in user_dict):
-				user_dict[part["User"]] = {}
-			user_dict[part["User"]][sess["Id"]] = s
-			user_dict[part["User"]][sess["Id"]]["Role"] = part["Role"]
-
+			if not (part in user_dict):
+				user_dict[part] = {}
+			user_dict[part][s['Id']] = s["Title"]
+	
 	return user_dict
 
 def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolRole, pmacoreSessionID):
