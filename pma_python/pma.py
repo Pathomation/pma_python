@@ -2,9 +2,10 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.71"
+__version__ = "2.0.0.72"
 
 _pma_url_content = {}
+_pma_debug = False
 
 def _pma_join(*s):
 	joinstring = ""
@@ -21,9 +22,11 @@ def _pma_q(arg):
 	
 def _pma_http_get(url, headers):
 	global _pma_url_content
+	global _pma_debug
 	
 	if not (url in _pma_url_content):
-		print("Retrieving ", url)
+		if _pma_debug == True:
+			print("Retrieving ", url)
 		r = requests.get(url, headers=headers)
 		_pma_url_content[url] = r
 	

@@ -169,7 +169,7 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 
 def disconnect(sessionID = None):
 	"""
-	Attempt to connect to PMA.core instance; success results in a SessionID
+	Attempt to disconnect from a PMA.core instance
 	"""
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + pma._pma_q((sessionID))
