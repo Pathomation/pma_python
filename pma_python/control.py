@@ -5,9 +5,9 @@ from pma_python import core, pma
 
 __version__ = pma.__version__
 
-pma_session_role_supervisor = 1
-pma_session_role_trainee = 2
-pma_session_role_observer = 3
+pma_training_session_role_supervisor = 1
+pma_training_session_role_trainee = 2
+pma_training_session_role_observer = 3
 
 pma_interaction_mode_locked = 0
 pma_interaction_mode_test_active = 1
@@ -36,7 +36,7 @@ def get_version_info(pmacontrolURL):
 		return None		
 	return r.json()
 
-def _pma_get_sessions(pmacontrolURL, pmacoreSessionID):
+def _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID):
 	"""
 	Retrieve a list of currently defined training sessions in PMA.control.
 	"""
@@ -50,7 +50,7 @@ def _pma_get_sessions(pmacontrolURL, pmacoreSessionID):
 		return None		
 	return r.json()
 
-def _pma_format_session_properly(sess):
+def _pma_format_training_session_properly(sess):
 	"""
 	Helper method to convert a JSON representation of a PMA.control training session to a proper Python-esque structure
 	"""
@@ -70,33 +70,33 @@ def _pma_format_session_properly(sess):
 
 	return sess_data
 
-def get_sessions(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+def get_training_sessions(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
 	Retrieve a dictionary with currently defined training sessions in PMA.control.
-	The resulting dictionary use the session's identifier as the dictionary key, and 
+	The resulting dictionary use the training session's identifier as the dictionary key, and 
 	therefore this method is easier to quickly retrieve and represent session-related data. 
-	However, this method returns less verbose data than get_sessions()
+	However, this method returns less verbose data than get_training_sessions()
 	"""
-	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
-	new_session_dict = {}
-	for sess in full_sessions:
+	full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+	new_training_session_dict = {}
+	for sess in full_training_sessions:
 		if (pmacontrolProjectID is None) or (pmacontrolProjectID == sess["ProjectId"]):				
-			new_session_dict[sess["Id"]] = _pma_format_session_properly(sess)
-	return new_session_dict
+			new_training_session_dict[sess["Id"]] = _pma_format_training_session_properly(sess)
+	return new_training_session_dict
 
-def get_sessions_for_participant(pmacontrolURL, pmacoreUsername, pmacoreSessionID):
-	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
-	new_session_dict = {}
-	for sess in full_sessions:
-		for part in sess["Participants"]:
-			if (part["User"].lower() == pmacoreUsername.lower()):
-				s = _pma_format_session_properly(sess)
-				s["Role"] = part["Role"]
-				new_session_dict[sess["Id"]] = s
+def get_training_sessions_for_participant(pmacontrolURL, participantUsername, pmacoreSessionID):
+	full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+	new_training_session_dict = {}
+	for sess in full_training_sessions:
+		for part, role in sess["Participants"].items():
+			if (part.lower() == participantUsername.lower()):
+				s = _pma_format_training_session_properly(sess)
+				s["Role"] = role
+				new_training_session_dict[sess["Id"]] = s
 
-	return new_session_dict
+	return new_training_session_dict
 
-def get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID):
+def get_training_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID):
 	"""
 	Extract the participants in a particular session
 	"""
@@ -113,29 +113,30 @@ def get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionI
 		parts[part['User']] = part
 	return parts
 
-def is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
+def is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID):
 	"""
 	Check to see if a specific user participates in a specific session
 	"""
-	all_parts = get_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID)
-	return pmacoreUsername in all_parts.keys()
+	all_parts = get_training_session_participants(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID)
+	return participantUsername in all_parts.keys()
 
-def get_session_url(pmacontrolURL, pmacontrolSessionID, pmacontrolCase, pmacoreSessionID):
-	if pmacontrolCase == None:
-		return pma._pma_join(pmacontrolURL, "training/training/") + pmacontrolSessionID + "?SessionID=" + pmacoreSessionID
-	elif str(pmacontrolCase.isnumeric()):
-		return pma._pma_join(pmacontrolURL, "training/training/") + pmacontrolSessionID + "?SessionID=" + pmacoreSessionID
-	else:
-		return pma._pma_join(pmacontrolURL, "training/training/") + pmacontrolSessionID + "?SessionID=" + pmacoreSessionID
+def get_training_session_url(pmacontrolURL, participantSessionID, participantUsername, pmacontrolSessionID, pmacontrolCaseCollectionID, pmacoreSessionID):
+    if (is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID)):
+        for k, v in get_training_session(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID).items():
+            if v["CaseCollectionId"] == pmacontrolCaseCollectionID:
+                url = v["Url"] + "?showheader=False&SessionID=" + participantSessionID
+                return url
+    else:
+        raise ValueError("Participant " + participantUsername + " is not registered for this session")
 
 def get_all_participants(pmacontrolURL, pmacoreSessionID):
 	"""
-	Get a list of all participants registered across all sessions, include the Role they play
+	Get a list of all participants registered across all sessions
 	"""
-	full_sessions = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
 	user_dict = {}
-	for sess in full_sessions:
-		s = _pma_format_session_properly(sess)
+	for sess in full_training_sessions:
+		s = _pma_format_training_session_properly(sess)
 		for part in sess["Participants"]:
 			if not (part in user_dict):
 				user_dict[part] = {}
@@ -143,50 +144,50 @@ def get_all_participants(pmacontrolURL, pmacoreSessionID):
 	
 	return user_dict
 
-def register_participant_for_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolRole, pmacoreSessionID):
+def register_participant_for_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacontrolRole, pmacoreSessionID):
 	"""
-	Registers a particpant for a given session
+	Registers a particpant for a given session, assign a specific role
 	"""
-	if is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
-		raise NameError ("PMA.core user " + pmacoreUsername + " is ALREADY registered in PMA.control training session " + str(pmacontrolSessionID))
+	if is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID):
+		raise NameError ("PMA.core user " + participantUsername + " is ALREADY registered in PMA.control training session " + str(pmacontrolSessionID))
 	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/Participants?SessionID=" + pmacoreSessionID
-	data = { "UserName": pmacoreUsername, "Role": pmacontrolRole}   # default interaction mode = Locked
+	data = { "UserName": participantUsername, "Role": pmacontrolRole}   # default interaction mode = Locked
 	data = parse.urlencode(data).encode()
 	req =  request.Request(url=url, data=data) # this makes the method "POST"
 	resp = request.urlopen(req)
 	pma._pma_clear_url_cache()
 	return resp
 	
-def set_participant_interactionmode(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacontrolCaseCollectionID, pmacontrolInteractionMode, pmacoreSessionID):
+def set_participant_interactionmode(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacontrolCaseCollectionID, pmacontrolInteractionMode, pmacoreSessionID):
 	"""
-	Assign an interaction mode to a particpant for a given Case Collection with in a session
+	Assign an interaction mode to a particpant for a given Case Collection within a trainingsession
 	"""
-	if not is_participant_in_session(pmacontrolURL, pmacoreUsername, pmacontrolSessionID, pmacoreSessionID):
-		raise NameError ("PMA.core user " + pmacoreUsername + " is NOT registered in PMA.control training session " + str(pmacontrolSessionID))
+	if not is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID):
+		raise NameError ("PMA.core user " + participantUsername + " is NOT registered in PMA.control training session " + str(pmacontrolSessionID))
 	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/InteractionMode?SessionID=" + pmacoreSessionID
-	data = { "UserName": pmacoreUsername, "CaseCollectionId": pmacontrolCaseCollectionID, "InteractionMode": pmacontrolInteractionMode }   
+	data = { "UserName": participantUsername, "CaseCollectionId": pmacontrolCaseCollectionID, "InteractionMode": pmacontrolInteractionMode }   
 	data = parse.urlencode(data).encode()
 	req =  request.Request(url=url, data=data) # this makes the method "POST"
 	resp = request.urlopen(req)
 	pma._pma_clear_url_cache()
 	return resp
 	
-def get_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+def get_training_session_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
 	Retrieve sessions (possibly filtered by project ID), titles only
 	"""
 	try:
-		return list(get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID).values())
+		return list(get_training_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID).values())
 	except Exception as e:
 		print(e)
 		return None		
 	
-def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+def get_training_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
 	Retrieve (training) sessions (possibly filtered by project ID), return a dictionary of session IDs and titles
 	"""
 	dct = {}
-	all = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	all = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
 	for sess in all:
 		if pmacontrolProjectID == None:
 			dct[sess["Id"]] = sess["Title"]
@@ -195,17 +196,29 @@ def get_session_titles_dict(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID
 
 	return dct
 
+def get_training_session(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID):
+	"""
+	Return the first (training) session with ID = pmacontrolSessionID
+	"""
+	all = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+
+	for el in all:
+		if pmacontrolSessionID ==  el['Id']:
+			# summarize session-related information so that it makes sense
+			return _pma_format_session_properly(el)
+
+	return None
 	
-def search_session(pmacontrolURL, titleSubstring, pmacoreSessionID):
+def search_training_session(pmacontrolURL, titleSubstring, pmacoreSessionID):
 	"""
 	Return the first (training) session that has titleSubstring as part of its string; search is case insensitive
 	"""
-	all = _pma_get_sessions(pmacontrolURL, pmacoreSessionID)
+	all = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
 
 	for el in all:
 		if titleSubstring.lower() in el['Title'].lower():
 			# summarize session-related information so that it makes sense
-			return _pma_format_session_properly(el)
+			return _pma_format_training_session_properly(el)
 
 	return None
 	
@@ -259,13 +272,13 @@ def get_case_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessio
 
 	return None
 
-def get_cases_for_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessionID):
+def get_cases_for_case_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessionID):
 	"""
 	Retrieve cases for a specific collection
 	"""
 	return get_case_collection(pmacontrolURL, pmacontrolCaseCollectionID, pmacoreSessionID)["Cases"]
 
-def search_collection(pmacontrolURL, titleSubstring, pmacoreSessionID):
+def search_case_collection(pmacontrolURL, titleSubstring, pmacoreSessionID):
 	"""
 	Return the first collection that has titleSubstring as part of its string; search is case insensitive
 	"""
@@ -277,7 +290,7 @@ def search_collection(pmacontrolURL, titleSubstring, pmacoreSessionID):
 
 	return None
 
-def _pma_format_project_embedded_sessions_properly(original_project_sessions):
+def _pma_format_project_embedded_training_sessions_properly(original_project_sessions):
 	"""
 	Helper method to convert a list of sessions with default arguments into a summarized dictionary
 	"""
@@ -336,7 +349,7 @@ def get_project(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	for prj in all_projects:
 		if prj['Id'] == pmacontrolProjectID:
 			# summary session-related information so that it makes sense
-			prj['Sessions'] = _pma_format_project_embedded_sessions_properly(prj['Sessions'])
+			prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
 			
 			# now integrate case collection information
 			colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
@@ -381,7 +394,7 @@ def search_project(pmacontrolURL, titleSubstring, pmacoreSessionID):
 	for prj in all_projects:
 		if titleSubstring.lower() in prj['Title'].lower():
 			# summary session-related information so that it makes sense
-			prj['Sessions'] = _pma_format_project_embedded_sessions_properly(prj['Sessions'])
+			prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
 			
 			# now integrate case collection information
 			colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)

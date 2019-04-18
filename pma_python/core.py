@@ -14,6 +14,7 @@ __version__ = pma.__version__
 
 # internal module helper variables and functions
 _pma_sessions = dict()
+_pma_usernames = dict()
 _pma_slideinfos = dict()
 _pma_pmacoreliteURL = "http://localhost:54001/"
 _pma_pmacoreliteSessionID = "SDK.Python"
@@ -136,36 +137,37 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 			
 	# purposefully DON'T use helper function _pma_api_url() here:	
 	# why? Because_pma_api_url() takes session information into account (which we don't have yet)
-	url = pma._pma_join(pmacoreURL, "api/xml/authenticate?caller=SDK.Python") 
+	url = pma._pma_join(pmacoreURL, "api/json/authenticate?caller=SDK.Python") 
 	if (pmacoreUsername != ""):
 		url += "&username=" + pma._pma_q(pmacoreUsername)
 	if (pmacorePassword != ""):
 		url += "&password=" + pma._pma_q(pmacorePassword)
 	
 	try:
-		contents = urlopen(url).read()
-		dom = minidom.parseString(contents)
-	except:
-		# Something went wrong; unable to communicate with specified endpoint
-		return None
-		
-	loginresult = dom.firstChild
-	succ = loginresult.getElementsByTagName("Success")[0]
+		headers = {'Accept': 'application/json'}
+		r = requests.get(url, headers=headers)
+	except Exception as e:
+		print(e)
+		return None		
 	
-	if (succ.firstChild.nodeValue.lower() == "false"):
+	loginresult = r.json()
+
+	if (str(loginresult["Success"]).lower() != "true"):
 		sessionID = None
 	else:
-		sessionID = loginresult.getElementsByTagName("SessionId")[0]
-		sessionID = sessionID.firstChild.nodeValue
-		
+		sessionID = loginresult["SessionId"]
+				
 		global _pma_sessions
-		_pma_sessions[sessionID] = pmacoreURL
 		global _pma_slideinfos
-		_pma_slideinfos[sessionID] = dict()
 		global _pma_amount_of_data_downloaded
-		_pma_amount_of_data_downloaded[sessionID] = len(contents)
+		
+		_pma_usernames[sessionID] = pmacoreUsername
+		_pma_sessions[admSessionID] = pmacoreURL
+		if not (admSessionID in core._pma_slideinfos):
+			_pma_slideinfos[admSessionID] = dict()
+		_pma_amount_of_data_downloaded[admSessionID] = len(loginresult)
 	
-	return (sessionID)	
+	return sessionID
 
 def disconnect(sessionID = None):
 	"""
@@ -770,7 +772,7 @@ def show_slide(slideRef, sessionID = None):
 		else:
 			url += ("viewer/index.htm"
 			+ "?sessionID=" + pma._pma_q(sessionID)
-			+ "^&pathOrUid=" + pma._pma_q(slideRef))    # note the ^& to escape a regular &
+			+ "^&pathOrUid=" + pma._pma_q(slideRef))	# note the ^& to escape a regular &
 	os.system(os_cmd+url)
 	
 def enumerate_files_for_slide(slideRef, sessionID = None):
