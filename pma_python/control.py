@@ -122,10 +122,9 @@ def is_participant_in_training_session(pmacontrolURL, participantUsername, pmaco
 
 def get_training_session_url(pmacontrolURL, participantSessionID, participantUsername, pmacontrolSessionID, pmacontrolCaseCollectionID, pmacoreSessionID):
     if (is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID)):
-        for k, v in get_training_session(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID).items():
-            if v["CaseCollectionId"] == pmacontrolCaseCollectionID:
-                url = v["Url"] + "?showheader=False&SessionID=" + participantSessionID
-                return url
+        for k, v in get_training_session(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID)["CaseCollections"].items():
+            if k == pmacontrolCaseCollectionID:
+                return v["Url"] + "?SessionID=" + participantSessionID
     else:
         raise ValueError("Participant " + participantUsername + " is not registered for this session")
 
@@ -205,7 +204,7 @@ def get_training_session(pmacontrolURL, pmacontrolSessionID, pmacoreSessionID):
 	for el in all:
 		if pmacontrolSessionID ==  el['Id']:
 			# summarize session-related information so that it makes sense
-			return _pma_format_session_properly(el)
+			return _pma_format_training_session_properly(el)
 
 	return None
 	
