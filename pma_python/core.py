@@ -164,7 +164,7 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 		
 		_pma_usernames[sessionID] = pmacoreUsername		
 		_pma_sessions[sessionID] = pmacoreURL			
-		if not (sessionID in core._pma_slideinfos):
+		if not (sessionID in _pma_slideinfos):
 			_pma_slideinfos[sessionID] = dict()
 		_pma_amount_of_data_downloaded[sessionID] = len(loginresult)
 	
