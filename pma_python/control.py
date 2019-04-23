@@ -149,7 +149,7 @@ def register_participant_for_training_session(pmacontrolURL, participantUsername
 	"""
 	if is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolSessionID, pmacoreSessionID):
 		raise NameError ("PMA.core user " + participantUsername + " is ALREADY registered in PMA.control training session " + str(pmacontrolSessionID))
-	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/Participants?SessionID=" + pmacoreSessionID
+	url = pma._pma_join(pmacontrolURL, "api/Sessions/") + str(pmacontrolSessionID) + "/AddParticipant?SessionID=" + pmacoreSessionID
 	data = { "UserName": participantUsername, "Role": pmacontrolRole}   # default interaction mode = Locked
 	data = parse.urlencode(data).encode()
 	req =  request.Request(url=url, data=data) # this makes the method "POST"
