@@ -39,7 +39,7 @@ def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
         return None        
     loginresult = r.json()
 
-    print(loginresult)
+    # print(loginresult)
         
     if (str(loginresult["Success"]).lower() != "true"):
         admSessionID = None
