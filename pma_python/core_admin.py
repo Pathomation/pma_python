@@ -47,6 +47,8 @@ def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
         admSessionID = loginresult["SessionId"]
         
         core._pma_sessions[admSessionID] = pmacoreURL
+		core._pma_usernames[admSessionID] = pmacoreUsername
+		
         if not (admSessionID in core._pma_slideinfos):
             core._pma_slideinfos[admSessionID] = dict()
         core._pma_amount_of_data_downloaded[admSessionID] = len(loginresult)

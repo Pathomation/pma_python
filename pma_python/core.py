@@ -157,12 +157,13 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	else:
 		sessionID = loginresult["SessionId"]
 				
-		global _pma_sessions
-		global _pma_slideinfos
-		global _pma_amount_of_data_downloaded
+		global _pma_sessions						# so afterwards we can look up what username actually belongs to a sessions	
+		global _pma_usernames						# so afterwards we can determine the PMA.core URL to connect to for a given SessionID
+		global _pma_slideinfos						# a caching mechanism for slide information; obsolete and should be improved through pma._pma_http_get()
+		global _pma_amount_of_data_downloaded		# keep track of how much data was downloaded
 		
-		_pma_usernames[sessionID] = pmacoreUsername
-		_pma_sessions[admSessionID] = pmacoreURL
+		_pma_usernames[sessionID] = pmacoreUsername		
+		_pma_sessions[sessionID] = pmacoreURL			
 		if not (admSessionID in core._pma_slideinfos):
 			_pma_slideinfos[admSessionID] = dict()
 		_pma_amount_of_data_downloaded[admSessionID] = len(loginresult)
