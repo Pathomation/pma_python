@@ -318,16 +318,26 @@ def get_fingerprint(slideRef, strict = False, sessionID = None):
 
 def who_am_i(sessionID = None):
 	"""
-	Getting information about your Session (under construction)
+	Getting information about your Session
 	"""
 	sessionID = _pma_session_id(sessionID)
+	retval = None
 	
-	retval = {
-		"sessionID": sessionID,
-		"username": _pma_usernames[sessionID],
-		"url": _pma_url(sessionID),
-		"amountOfDataDownloaded": _pma_amount_of_data_downloaded[sessionID] 
-		}
+	if (sessionID == _pma_pmacoreliteSessionID):
+		retval = {
+			"sessionID": _pma_pmacoreliteSessionID,
+			"username": None,
+			"url": _pma_pmacoreliteURL,
+			"amountOfDataDownloaded": _pma_amount_of_data_downloaded[_pma_pmacoreliteSessionID] 
+			}
+	elif (sessionID != None):
+		retval = {
+			"sessionID": sessionID,
+			"username": _pma_usernames[sessionID],
+			"url": _pma_url(sessionID),
+			"amountOfDataDownloaded": _pma_amount_of_data_downloaded[sessionID] 
+			}
+
 	return retval
 
 def sessions():
@@ -789,11 +799,11 @@ def get_files_for_slide(slideRef, sessionID = None):
 	if (slideRef.startswith("/")):
 		slideRef = slideRef[1:]		
 	
-	if (is_lite()):
+	if (sessionID == _pma_pmacoreliteSessionID):
 		url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 	else:
 		url = _pma_api_url(sessionID, False) + "getfilenames?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
-
+		
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
@@ -804,10 +814,10 @@ def get_files_for_slide(slideRef, sessionID = None):
 		files  = json["d"]
 	else:
 		files = json
-	
+		
 	retval = {}
 	for file in files:
-		if (is_lite()):
+		if (sessionID == _pma_pmacoreliteSessionID):
 			retval[file] = { "Size": 0, "LastModified": None }
 		else:
 			retval[file["Path"]] = { "Size": file["Size"], "LastModified": file["LastModified"] }
