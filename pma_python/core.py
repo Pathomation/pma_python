@@ -90,7 +90,7 @@ def _pma_api_url(sessionID = None, xml = True):
 		return pma._pma_join(url, "api/xml/")
 	else:
 		return pma._pma_join(url, "api/json/")
-		
+
 def _pma_XmlToStringArray(root, limit = 0):
 	els = root.getElementsByTagName("string")
 	l = []
@@ -101,7 +101,7 @@ def _pma_XmlToStringArray(root, limit = 0):
 		for el in els:
 			l.append(el.firstChild.nodeValue)
 	return l
-	
+
 # end internal module helper variables and functions
 	
 def is_lite(pmacoreURL = _pma_pmacoreliteURL):
@@ -109,7 +109,7 @@ def is_lite(pmacoreURL = _pma_pmacoreliteURL):
 	See if there's a PMA.core.lite or PMA.core instance running at pmacoreURL
 	"""
 	return _pma_is_lite(pmacoreURL)
-	
+
 def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	"""
 	Get version info from PMA.core instance running at pmacoreURL
@@ -316,13 +316,20 @@ def get_fingerprint(slideRef, strict = False, sessionID = None):
 		fingerprint = json
 	return fingerprint
 
-def who_am_i():
+def who_am_i(sessionID = None):
 	"""
 	Getting information about your Session (under construction)
 	"""
-	print ("Under construction")
-	return "Under construction"
+	sessionID = _pma_session_id(sessionID)
 	
+	retval = {
+		"sessionID": sessionID,
+		"username": _pma_usernames[sessionID],
+		"url": _pma_url(sessionID),
+		"amountOfDataDownloaded": _pma_amount_of_data_downloaded[sessionID] 
+		}
+	return retval
+
 def sessions():
 	global _pma_sessions
 	return _pma_sessions
@@ -338,7 +345,7 @@ def get_tile_size(sessionID = None):
 		info = choice(list(_pma_slideinfos[sessionID].values()))
 		
 	return (int(info["TileSize"]), int(info["TileSize"]))
-	
+
 def get_slide_info(slideRef, sessionID = None):
 	"""
 	Return raw image information in the form of nested dictionaries
@@ -408,7 +415,7 @@ def get_zoomlevels_dict(slideRef, sessionID = None, min_number_of_tiles = 0):
 	
 	
 	return d
-	
+
 def get_pixels_per_micrometer(slideRef, zoomlevel = None, sessionID = None):
 	"""
 	Retrieve the physical dimension in terms of pixels per micrometer.
@@ -424,7 +431,7 @@ def get_pixels_per_micrometer(slideRef, zoomlevel = None, sessionID = None):
 	else:
 		factor = 2 ** (zoomlevel - maxZoomLevel)
 		return (float(xppm) / factor, float(yppm) / factor)		
-	
+
 def get_pixel_dimensions(slideRef, zoomlevel = None, sessionID = None):
 	"""Get the total dimensions of a slide image at a given zoomlevel"""
 	maxZoomLevel = get_max_zoomlevel(slideRef, sessionID)
@@ -443,14 +450,14 @@ def get_number_of_tiles(slideRef, zoomlevel = None, sessionID = None):
 	ytiles = int(ceil(pixels[1] / sz[0]))
 	ntiles = xtiles * ytiles
 	return (xtiles, ytiles, ntiles)
-	
+
 def get_physical_dimensions(slideRef, sessionID = None):
 	"""Determine the physical dimensions of the sample represented by the slide.
 	This is independent of the zoomlevel: the physical properties don't change because the magnification changes"""
 	ppmData = get_pixels_per_micrometer(slideRef, sessionID)
 	pixelSz = get_pixel_dimensions(slideRef, sessionID)
 	return (pixelSz[0] * ppmData[0], pixelSz[1] * ppmData[1])
-			
+
 def get_number_of_channels(slideRef, sessionID = None):
 	"""Number of fluorescent channels for a slide (when slide is brightfield, return is always 1)"""
 	info = get_slide_info(slideRef, sessionID)
@@ -477,7 +484,7 @@ def is_multi_layer(slideRef, sessionID = None):
 def is_z_stack(slideRef, sessionID = None):
 	"""Determine whether a slide is a z-stack or not"""
 	return is_multi_layer(slideRef, sessionID)
-	
+
 def get_magnification(slideRef, zoomlevel = None, exact = False, sessionID = None):
 	"""Get the magnification represented at a certain zoomlevel"""
 	ppm = get_pixels_per_micrometer(slideRef, zoomlevel, sessionID)[0]
@@ -529,11 +536,10 @@ def get_barcode_text(slideRef, sessionID = None):
 		barcode = ""
 	return barcode
 
-	
 def get_label_url(slideRef, sessionID = None):
 	"""Get the URL that points to the label for a slide"""
 	return get_barcode_url(slideRef, sessionID)
-	
+
 def get_label_image(slideRef, sessionID = None):
 	"""Get the label image for a slide"""
 	sessionID = _pma_session_id(sessionID)
@@ -544,7 +550,7 @@ def get_label_image(slideRef, sessionID = None):
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(r.content)
 	return img
-		
+
 def get_thumbnail_url(slideRef, sessionID = None):
 	"""Get the URL that points to the thumbnail for a slide"""
 	sessionID = _pma_session_id(sessionID)
@@ -554,7 +560,7 @@ def get_thumbnail_url(slideRef, sessionID = None):
 		+ "?SessionID=" + pma._pma_q(sessionID)
 		+ "&pathOrUid=" + pma._pma_q(slideRef))
 	return url
-	
+
 def get_thumbnail_image(slideRef, sessionID = None):
 	"""Get the thumbnail image for a slide"""
 	sessionID = _pma_session_id(sessionID)
@@ -627,7 +633,7 @@ def get_submitted_forms(slideRef, sessionID = None):
 	else:
 		forms = ""
 	return forms
-	
+
 def get_submitted_form_data(slideRef, sessionID = None):
 	"""Get all submitted form data associated with a specific slide"""
 	sessionID = _pma_session_id(sessionID)
@@ -648,7 +654,7 @@ def get_submitted_form_data(slideRef, sessionID = None):
 	else:
 		data = ""
 	return data
-	
+
 def get_available_forms(slideRef = None, sessionID = None):
 	"""
 	See what forms are available to fill out, either system-wide (leave slideref to None), or for a particular slide
@@ -701,8 +707,7 @@ def prepare_form_dictionary(formID, sessionID = None):
 	else:
 		form_def = ""
 	return form_def
-	
-	
+
 def submit_form_data(slideRef, formID, formDict, sessionID = None):
 	"""Not implemented yet"""
 	sessionID = _pma_session_id(sessionID)
@@ -710,7 +715,7 @@ def submit_form_data(slideRef, formID, formDict, sessionID = None):
 		if (slideRef.startswith("/")):
 			slideRef = slideRef[1:]
 	return None
-	
+
 def get_annotations(slideRef, sessionID = None):
 	"""
 	Retrieve the annotations for slide slideRef
@@ -733,7 +738,7 @@ def get_annotations(slideRef, sessionID = None):
 	else:
 		annotations = ""
 	return annotations
-	
+
 def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel = None, zstack = 0, sessionID = None, format = "jpg", quality = 100):
 	"""
 	Get all tiles with a (fromX, fromY, toX, toY) rectangle. Navigate left to right, top to bottom
@@ -753,7 +758,7 @@ def get_tiles(slideRef, fromX = 0, fromY = 0, toX = None, toY = None, zoomlevel 
 	for x in range(fromX, toX):
 		for y in range(fromY, toY):
 			yield get_tile(slideRef = slideRef, x = x, y = y, zstack = zstack, zoomlevel = zoomlevel, sessionID = sessionID, format = format, quality = quality)
-			
+
 def show_slide(slideRef, sessionID = None):
 	"""Launch the default webbrowser and load a web-based viewer for the slide"""
 	sessionID = _pma_session_id(sessionID)
@@ -775,15 +780,20 @@ def show_slide(slideRef, sessionID = None):
 			+ "?sessionID=" + pma._pma_q(sessionID)
 			+ "^&pathOrUid=" + pma._pma_q(slideRef))	# note the ^& to escape a regular &
 	os.system(os_cmd+url)
-	
-def enumerate_files_for_slide(slideRef, sessionID = None):
+
+def get_files_for_slide(slideRef, sessionID = None):
 	"""Obtain all files actually associated with a specific slide
 	This is most relevant with slides that are defined by multiple files, like MRXS or VSI"""
 	sessionID = _pma_session_id(sessionID)
 	
 	if (slideRef.startswith("/")):
 		slideRef = slideRef[1:]		
-	url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)	
+	
+	if (is_lite()):
+		url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+	else:
+		url = _pma_api_url(sessionID, False) + "getfilenames?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
@@ -794,5 +804,12 @@ def enumerate_files_for_slide(slideRef, sessionID = None):
 		files  = json["d"]
 	else:
 		files = json
-	return files
 	
+	retval = {}
+	for file in files:
+		if (is_lite()):
+			retval[file] = { "Size": 0, "LastModified": None }
+		else:
+			retval[file["Path"]] = { "Size": file["Size"], "LastModified": file["LastModified"] }
+			
+	return retval
