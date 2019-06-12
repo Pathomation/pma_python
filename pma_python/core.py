@@ -134,14 +134,22 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	"""
 	# purposefully DON'T use helper function _pma_api_url() here:
 	# why? because GetVersionInfo can be invoked WITHOUT a valid SessionID; _pma_api_url() takes session information into account
-	url = pma._pma_join(pmacoreURL, "api/xml/GetVersionInfo")
-	try:
-		contents = urlopen(url).read()
-	except Exception as e:
-		return None		
-	dom = minidom.parseString(contents)	
-	return (dom.firstChild.firstChild.nodeValue)
 
+	url = pma._pma_join(pmacoreURL, "api/json/GetVersionInfo")
+	if pma._pma_debug == True:
+		print(url)
+	r = requests.get(url)
+	json = r.json()
+	version = None
+	if ("Code" in json):
+		raise Exception("get_directories to " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+	elif ("d" in json):
+		version  = json["d"]
+	else:
+		version = json
+		
+	return version
+	
 def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassword = ""):
 	"""
 	Attempt to connect to PMA.core instance; success results in a SessionID
@@ -222,6 +230,8 @@ def get_directories(startDir, sessionID = None, recursive = False):
 	"""
 	sessionID = _pma_session_id(sessionID)
 	url = _pma_api_url(sessionID, False) + "GetDirectories?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+	if pma._pma_debug == True:
+		print(url);
 	r = requests.get(url)
 	json = r.json()
 	global _pma_amount_of_data_downloaded 
