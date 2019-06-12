@@ -12,5 +12,4 @@ if (sessionID is None):
 	
 print("You have the following drives in your system: ")
 rootdirs = core.get_root_directories()
-for rd in rootdirs:
-	print(rd)
+print(rootdirs)

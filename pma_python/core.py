@@ -21,6 +21,17 @@ _pma_pmacoreliteSessionID = "SDK.Python"
 _pma_usecachewhenretrievingtiles = True
 _pma_amount_of_data_downloaded = {_pma_pmacoreliteSessionID: 0}
 
+def set_debug_flag(flag):
+	"""
+	Determine whether Core module runs in debugging mode or not.
+	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
+	"""
+	if not isinstance(flag, (bool)):
+		raise Exception("flag argument must be of class bool")
+	pma._pma_debug = flag
+	if flag == True:
+		print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
+
 def _pma_session_id(sessionID = None):
 	if (sessionID is None):
 		# if the sessionID isn't specified, maybe we can still recover it somehow
@@ -70,6 +81,11 @@ def _pma_url(sessionID = None):
 			raise Exception("Invalid sessionID:" + str(sessionID))
 
 def _pma_is_lite(pmacoreURL = _pma_pmacoreliteURL):
+	"""checks to see if PMA.core.lite (server component of PMA.start) is running at a given endpoint.
+	if pmacoreURL is omitted, default check is to see if PMA.start is effectively running at localhost (defined by _pma_pmacoreliteURL).
+		note that PMA.start may not be running, while it is actually installed. This method doesn't detect whether PMA.start is installed; merely whether it's running!
+	if pmacoreURL is specified, then the method checks if there's an instance of PMA.start (results in True), PMA.core (results in False) 
+	or nothing (at least not a Pathomation software platform component) at all (results in None)"""
 	url = pma._pma_join(pmacoreURL, "api/xml/IsLite")
 	try:
 		contents = urlopen(url).read()
@@ -105,9 +121,11 @@ def _pma_XmlToStringArray(root, limit = 0):
 # end internal module helper variables and functions
 	
 def is_lite(pmacoreURL = _pma_pmacoreliteURL):
-	"""
-	See if there's a PMA.core.lite or PMA.core instance running at pmacoreURL
-	"""
+	"""checks to see if PMA.core.lite (server component of PMA.start) is running at a given endpoint.
+	if pmacoreURL is omitted, default check is to see if PMA.start is effectively running at localhost (defined by _pma_pmacoreliteURL).
+		note that PMA.start may not be running, while it is actually installed. This method doesn't detect whether PMA.start is installed; merely whether it's running!
+	if pmacoreURL is specified, then the method checks if there's an instance of PMA.start (results in True), PMA.core (results in False) 
+	or nothing (at least not a Pathomation software platform component) at all (results in None)"""
 	return _pma_is_lite(pmacoreURL)
 
 def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
@@ -230,8 +248,16 @@ def get_first_non_empty_directory(startDir = None, sessionID = None):
 
 	if ((startDir is None) or (startDir == "")):
 		startDir = "/"
-	slides = get_slides(startDir = startDir, sessionID = sessionID)
-	if (len(slides) > 0):
+		
+	slides = None
+	try:
+		slides = get_slides(startDir = startDir, sessionID = sessionID)
+	except:
+		if pma._pma_debug == True:
+			print("Unable to examine", startDir)
+		return slides
+		
+	if ((slides != None) and (len(slides) > 0)):
 		return startDir
 	else:
 		if (startDir == "/"):
@@ -240,10 +266,16 @@ def get_first_non_empty_directory(startDir = None, sessionID = None):
 				if (not (nonEmtptyDir is None)):
 					return nonEmtptyDir
 		else:
-			for dir in get_directories(startDir, sessionID):
-				nonEmtptyDir = get_first_non_empty_directory(startDir = dir, sessionID = sessionID)
-				if (not (nonEmtptyDir is None)):
-					return nonEmtptyDir
+			try:
+				dirs = get_directories(startDir, sessionID)
+			except:
+				if pma._pma_debug == True:
+					print("Unable to examine", startDir)
+			else:
+				for dir in dirs:
+					nonEmtptyDir = get_first_non_empty_directory(startDir = dir, sessionID = sessionID)
+					if (not (nonEmtptyDir is None)):
+						return nonEmtptyDir
 	return None
 
 def get_slides(startDir, sessionID = None, recursive = False):
@@ -292,7 +324,14 @@ def get_uid(slideRef, sessionID = None):
 	Get the UID for a specific slide 
 	"""
 	sessionID = _pma_session_id(sessionID)
+	if (sessionID == _pma_pmacoreliteSessionID):
+		if is_lite():
+			raise ValueError ("PMA.core.lite found running, but doesn't support UID generation. For advanced anonymization, please upgrade to PMA.core.")
+		else:
+			raise ValueError ("PMA.core.lite not found, and besides; it doesn't support UID generation. For advanced anonymization, please upgrade to PMA.core.")
+
 	url = _pma_api_url(sessionID) + "GetUID?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(slideRef)
+
 	contents = urlopen(url).read()
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(contents)
