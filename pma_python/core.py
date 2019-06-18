@@ -265,7 +265,8 @@ def get_first_non_empty_directory(startDir = None, sessionID = None):
 	except:
 		if pma._pma_debug == True:
 			print("Unable to examine", startDir)
-		return slides
+		if (startDir != "/"):
+			return slides
 		
 	if ((slides != None) and (len(slides) > 0)):
 		return startDir
@@ -348,12 +349,12 @@ def get_uid(slideRef, sessionID = None):
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom)[0]
 	
-def get_fingerprint(slideRef, strict = False, sessionID = None):
+def get_fingerprint(slideRef, sessionID = None):
 	"""
 	Get the fingerprint for a specific slide 
 	"""
 	sessionID = _pma_session_id(sessionID)
-	url = _pma_api_url(sessionID, False) + "GetFingerprint?sessionID=" + pma._pma_q(sessionID) + "&strict=" + pma._pma_q(str(strict)) + "&pathOrUid=" + pma._pma_q(slideRef)
+	url = _pma_api_url(sessionID, False) + "GetFingerprint?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
 	r = requests.get(url)
 	json = r.json()
