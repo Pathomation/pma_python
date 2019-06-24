@@ -2,7 +2,7 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.86"
+__version__ = "2.0.0.87"
 
 _pma_url_content = {}
 _pma_debug = False
@@ -35,3 +35,10 @@ def _pma_http_get(url, headers):
 def _pma_clear_url_cache():
 	global _pma_url_content
 	_pma_url_content = {}
+	
+def _pma_set_debug_flag(flag):
+	"""
+	Determine whether Core module runs in debugging mode or not.
+	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
+	"""
+    pma._pma_set_debug_flag(flag)
