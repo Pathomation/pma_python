@@ -8,6 +8,17 @@ import requests
 
 __version__ = pma.__version__
 	
+def set_debug_flag(flag):
+	"""
+	Determine whether Core module runs in debugging mode or not.
+	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
+	"""
+	if not isinstance(flag, (bool)):
+		raise Exception("flag argument must be of class bool")
+	pma._pma_debug = flag
+	if flag == True:
+		print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
+
 def get_version_info(pmaviewURL):
 	"""
 	Get version info from PMA.view instance running at pmaviewURL
@@ -18,7 +29,8 @@ def get_version_info(pmaviewURL):
 	version = ""
 	try:
 		# Are we looking at PMA.view/studio 2.x?
-		print(url)
+		if pma._pma_debug == True:
+			print(url)
 		contents = urlopen(url).read().decode("utf-8").strip("\"").strip("'")
 		return contents
 	except Exception as e:
@@ -27,10 +39,11 @@ def get_version_info(pmaviewURL):
 	url = pma._pma_join(pmaviewURL, "viewer/version")
 	try:
 		# Oops, perhaps this is a PMA.view 1.x version
-		print(url)
+		if pma._pma_debug == True:
+			print(url)
 		contents = urlopen(url).read().decode("utf-8").strip("\"").strip("'")
 		return contents
 	except Exception as e:
 		version = None
 		
-	return version		
+	return version
