@@ -130,7 +130,8 @@ def is_lite(pmacoreURL = _pma_pmacoreliteURL):
 
 def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	"""
-	Get version info from PMA.core instance running at pmacoreURL
+	Get version info from PMA.core instance running at pmacoreURL. 
+	Return None if PMA.core not found running at pmacoreURL endpoint
 	"""
 	# purposefully DON'T use helper function _pma_api_url() here:
 	# why? because GetVersionInfo can be invoked WITHOUT a valid SessionID; _pma_api_url() takes session information into account
@@ -138,7 +139,12 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	url = pma._pma_join(pmacoreURL, "api/json/GetVersionInfo")
 	if pma._pma_debug == True:
 		print(url)
-	r = requests.get(url)
+		
+	try:
+		r = requests.get(url)
+	except:
+		return None
+		
 	json = r.json()
 	version = None
 	if ("Code" in json):
@@ -839,6 +845,9 @@ def show_slide(slideRef, sessionID = None):
 			url += ("viewer/index.htm"
 			+ "?sessionID=" + pma._pma_q(sessionID)
 			+ "^&pathOrUid=" + pma._pma_q(slideRef))	# note the ^& to escape a regular &
+			
+	if (pma._pma_debug == True):
+		print(url)
 	os.system(os_cmd+url)
 
 def get_files_for_slide(slideRef, sessionID = None):
