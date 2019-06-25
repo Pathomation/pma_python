@@ -107,6 +107,15 @@ def _pma_api_url(sessionID = None, xml = True):
 	else:
 		return pma._pma_join(url, "api/json/")
 
+def _pma_query_url(sessionID = None):
+	# let's get the base URL first for the specified session
+	url = _pma_url(sessionID)
+	if url is None:
+		# sort of a hopeless situation; there is no URL to refer to
+		return None
+	# remember, _pma_url is guaranteed to return a URL that ends with "/"
+	return pma._pma_join(url, "query/json/")
+
 def _pma_XmlToStringArray(root, limit = 0):
 	els = root.getElementsByTagName("string")
 	l = []
@@ -882,3 +891,32 @@ def get_files_for_slide(slideRef, sessionID = None):
 			retval[file["Path"]] = { "Size": file["Size"], "LastModified": file["LastModified"] }
 			
 	return retval
+
+def search_slides(startDir, pattern, sessionID = None):
+	sessionID = _pma_session_id(sessionID)
+	
+	sessionID = _pma_session_id(sessionID)
+	if (sessionID == _pma_pmacoreliteSessionID):
+		if is_lite():
+			raise ValueError ("PMA.core.lite found running, but doesn't support searching.")
+		else:
+			raise ValueError ("PMA.core.lite not found, and besides; it doesn't support searching.")
+
+	if (startDir.startswith("/")):
+		startDir = slideRef[1:]		
+
+	url = _pma_query_url(sessionID) + "Filename?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir) + "&pattern=" + pma._pma_q(pattern)
+	if pma._pma_debug == True:
+		print("url =", url)
+	
+	r = requests.get(url)
+	json = r.json()
+	global _pma_amount_of_data_downloaded 
+	_pma_amount_of_data_downloaded[sessionID] += len(json)
+	if ("Code" in json):
+		raise Exception("enumerate_files_for_slide on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+	elif ("d" in json):
+		files  = json["d"]
+	else:
+		files = json
+	return files
