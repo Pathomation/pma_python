@@ -7,7 +7,6 @@ from io import BytesIO
 from urllib.parse import quote
 from urllib.request import urlopen
 from xml.dom import minidom
-from pma_python import pma
 
 import requests
 
@@ -101,3 +100,46 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate =
 	print(url)
 	createUserReponse = requests.post(url, json=createUserParams)
 	return createUserReponse.text
+	
+def create_amazons3_mounting_point(accessKey, secretKey, path, instanceId, chunkSize = 1048576, serviceUrl = None): 
+	"""
+	create an Amazon S3 mounting point. A list of these is to be used to supply method create_root_directory()
+	"""
+	createAmazonS3MountingPointParams = {
+		"AccessKey": accessKey,
+		"SecretKey": secretKey,
+		"ChunkSize": chunkSize,
+		"ServiceUrl": serviceUrl,
+		"Path": path,
+		"InstanceId": instanceId	
+	}
+	return createAmazonS3MountingPointParams
+
+def create_filesystem_mounting_point(username, password, domainName, path, instanceId): 
+	"""
+	create an FileSystem mounting point. A list of these is to be used to supply method create_root_directory()
+	"""
+	createFileSystemMountingPointParams = {
+		"Username": username,
+		"Password": password,
+		"DomainName": domainName,
+		"Path": path,
+		"InstanceId": instanceId	
+	}
+	return createFileSystemMountingPointParams
+	
+def	create_root_directory(admSessionID, alias, AmazonS3MountingPoints = None, FileSystemMountingPoints = None, description = "Root dir created through pma_python", isPublic = False, isOffline = False):
+	createRootDirectoryParams = {
+		"sessionID": admSessionID,
+		"rootDirectory": {
+			"Alias": alias,
+			"Description": description,
+			"Offline": isPublic,
+			"Public": isOffline,
+			"AmazonS3MountingPoints": AmazonS3MountingPoints,
+			"FileSystemMountingPoints": FileSystemMountingPoints
+		}
+	}
+	url = _pma_admin_url(admSessionID) + "CreateRootDirectory"
+	createRootDirectoryReponse = requests.post(url, json=createRootDirectoryParams)
+	return createRootDirectoryReponse.text
