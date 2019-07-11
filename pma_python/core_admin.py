@@ -14,7 +14,7 @@ __version__ = pma.__version__
 
 def set_debug_flag(flag):
 	"""
-	Determine whether Core module runs in debugging mode or not.
+	Determine whether pma_python runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
 	pma._pma_set_debug_flag(flag)
@@ -30,7 +30,7 @@ def _pma_admin_url(sessionID = None):
 
 def _pma_check_for_pma_start(method = "", url = None, session = None):
 	if (core._pma_pmacoreliteSessionID == session):
-		raise Exception("PMA.start doesn't support", methodName);
+		raise Exception("PMA.start doesn't support", method);
 	elif (url == core._pma_pmacoreliteURL):
 		if core.is_lite():
 			raise ValueError ("PMA.core.lite found running, but doesn't support an administrative back-end")
@@ -93,7 +93,8 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate =
 			"Password": pwd,
 			"Email": email,
 			"Administrator": isAdmin,
-			"CanAnnotate": canAnnotate
+			"CanAnnotate": canAnnotate,
+			"Suspended": isSuspended
 		} 
 	}
 	url = _pma_admin_url(admSessionID) + "CreateUser"

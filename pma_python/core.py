@@ -23,14 +23,10 @@ _pma_amount_of_data_downloaded = {_pma_pmacoreliteSessionID: 0}
 
 def set_debug_flag(flag):
 	"""
-	Determine whether Core module runs in debugging mode or not.
+	Determine whether pma_python runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
-	if not isinstance(flag, (bool)):
-		raise Exception("flag argument must be of class bool")
-	pma._pma_debug = flag
-	if flag == True:
-		print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
+	pma._pma_set_debug_flag(flag)
 
 def _pma_session_id(sessionID = None):
 	if (sessionID is None):
@@ -157,7 +153,7 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	json = r.json()
 	version = None
 	if ("Code" in json):
-		raise Exception("get_directories to " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+		raise Exception("get_version_info resulted in: " + json["Message"])
 	elif ("d" in json):
 		version  = json["d"]
 	else:
@@ -893,8 +889,7 @@ def get_files_for_slide(slideRef, sessionID = None):
 	return retval
 
 def search_slides(startDir, pattern, sessionID = None):
-	sessionID = _pma_session_id(sessionID)
-	
+
 	sessionID = _pma_session_id(sessionID)
 	if (sessionID == _pma_pmacoreliteSessionID):
 		if is_lite():
@@ -914,7 +909,7 @@ def search_slides(startDir, pattern, sessionID = None):
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(json)
 	if ("Code" in json):
-		raise Exception("enumerate_files_for_slide on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
+		raise Exception("search_slides on  " + pattern + " in " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
 	elif ("d" in json):
 		files  = json["d"]
 	else:

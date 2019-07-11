@@ -2,7 +2,7 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.91"
+__version__ = "2.0.0.93"
 
 _pma_url_content = {}
 _pma_debug = False
@@ -38,7 +38,7 @@ def _pma_clear_url_cache():
 	
 def _pma_set_debug_flag(flag):
 	"""
-	Determine whether Core module runs in debugging mode or not.
+	Determine whether pma_python runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
 	if not isinstance(flag, (bool)):
