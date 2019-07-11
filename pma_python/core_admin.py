@@ -129,16 +129,16 @@ def create_filesystem_mounting_point(username, password, domainName, path, insta
 	}
 	return createFileSystemMountingPointParams
 	
-def	create_root_directory(admSessionID, alias, AmazonS3MountingPoints = None, FileSystemMountingPoints = None, description = "Root dir created through pma_python", isPublic = False, isOffline = False):
+def	create_root_directory(admSessionID, alias, amazonS3MountingPoints = None, fileSystemMountingPoints = None, description = "Root dir created through pma_python", isPublic = False, isOffline = False):
 	createRootDirectoryParams = {
 		"sessionID": admSessionID,
 		"rootDirectory": {
 			"Alias": alias,
 			"Description": description,
-			"Offline": isPublic,
-			"Public": isOffline,
-			"AmazonS3MountingPoints": AmazonS3MountingPoints,
-			"FileSystemMountingPoints": FileSystemMountingPoints
+			"Public": isPublic,
+			"Offline": isOffline,
+			"AmazonS3MountingPoints": amazonS3MountingPoints,
+			"FileSystemMountingPoints": fileSystemMountingPoints
 		}
 	}
 	url = _pma_admin_url(admSessionID) + "CreateRootDirectory"
