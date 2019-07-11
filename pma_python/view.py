@@ -7,17 +7,13 @@ from pma_python import pma
 import requests
 
 __version__ = pma.__version__
-	
+
 def set_debug_flag(flag):
 	"""
-	Determine whether Core module runs in debugging mode or not.
+	Determine whether pma_python runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
-	if not isinstance(flag, (bool)):
-		raise Exception("flag argument must be of class bool")
-	pma._pma_debug = flag
-	if flag == True:
-		print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
+	pma._pma_set_debug_flag(flag)
 
 def get_version_info(pmaviewURL):
 	"""

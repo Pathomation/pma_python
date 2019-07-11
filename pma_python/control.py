@@ -21,6 +21,13 @@ pma_interaction_mode_self_test = 8
 pma_interaction_mode_hidden = 9
 pma_interaction_mode_clinical_information_edit = 10
 
+def set_debug_flag(flag):
+	"""
+	Determine whether pma_python module runs in debugging mode or not.
+	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
+	"""
+	pma._pma_set_debug_flag(flag)
+
 def get_version_info(pmacontrolURL):
 	"""
 	Get version info from PMA.control instance running at pmacontrolURL
