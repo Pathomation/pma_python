@@ -160,7 +160,36 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 		version = json
 		
 	return version
+
+def get_api_version(pmacoreURL = _pma_pmacoreliteURL):
+	url = pma._pma_join(pmacoreURL, "api/json/GetAPIVersion")
+	if pma._pma_debug == True:
+		print(url)
+		
+	try:
+		r = requests.get(url)
+	except:
+		return None
+		
+	try:
+		json = r.json()
+	except:
+		raise Exception("GetAPIVersion method not available at " + pmacoreURL)
+		
+	version = None
+	if ("Code" in json):
+		raise Exception("get_api_version resulted in: " + json["Message"])
+	elif ("d" in json):
+		version  = json["d"]
+	else:
+		version = json
+		
+	return version
 	
+def get_api_verion_string(pmacoreURL = _pma_pmacoreliteURL):
+	v = get_api_version(pmacoreURL)
+	return ".".join([str(x) for x in v])  
+
 def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassword = ""):
 	"""
 	Attempt to connect to PMA.core instance; success results in a SessionID
