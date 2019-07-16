@@ -2,7 +2,7 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.94"
+__version__ = "2.0.0.95"
 
 _pma_url_content = {}
 _pma_debug = False
@@ -41,9 +41,11 @@ def _pma_set_debug_flag(flag):
 	Determine whether pma_python runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
+	global _pma_debug
+	
 	if not isinstance(flag, (bool)):
 		raise Exception("flag argument must be of class bool")
-	pma._pma_debug = flag
+	_pma_debug = flag
 	if flag == True:
 		print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
 

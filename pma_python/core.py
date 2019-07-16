@@ -23,7 +23,7 @@ _pma_amount_of_data_downloaded = {_pma_pmacoreliteSessionID: 0}
 
 def set_debug_flag(flag):
 	"""
-	Determine whether pma_python runs in debugging mode or not.
+	Determine whether Core module runs in debugging mode or not.
 	When in debugging mode (flag = true), extra output is produced when certain conditions in the code are not met
 	"""
 	pma._pma_set_debug_flag(flag)
@@ -153,7 +153,7 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	json = r.json()
 	version = None
 	if ("Code" in json):
-		raise Exception("get_version_info resulted in: " + json["Message"])
+		raise Exception("get_directories to " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
 	elif ("d" in json):
 		version  = json["d"]
 	else:
@@ -165,10 +165,20 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 	"""
 	Attempt to connect to PMA.core instance; success results in a SessionID
 	"""
+	global _pma_sessions						# so afterwards we can look up what username actually belongs to a sessions	
+	global _pma_usernames						# so afterwards we can determine the PMA.core URL to connect to for a given SessionID
+	global _pma_slideinfos						# a caching mechanism for slide information; obsolete and should be improved through pma._pma_http_get()
+	global _pma_amount_of_data_downloaded		# keep track of how much data was downloaded
+
 	if (pmacoreURL == _pma_pmacoreliteURL):
 		if is_lite():
 			# no point authenticating localhost / PMA.core.lite
-			return _pma_pmacoreliteSessionID
+			sessionID = _pma_pmacoreliteSessionID
+			_pma_sessions[sessionID] = pmacoreURL			
+			if not (sessionID in _pma_slideinfos):
+				_pma_slideinfos[sessionID] = {}
+			_pma_amount_of_data_downloaded[sessionID] = 0
+			return sessionID
 		else:
 			return None
 			
@@ -193,16 +203,11 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 		sessionID = None
 	else:
 		sessionID = loginresult["SessionId"]
-				
-		global _pma_sessions						# so afterwards we can look up what username actually belongs to a sessions	
-		global _pma_usernames						# so afterwards we can determine the PMA.core URL to connect to for a given SessionID
-		global _pma_slideinfos						# a caching mechanism for slide information; obsolete and should be improved through pma._pma_http_get()
-		global _pma_amount_of_data_downloaded		# keep track of how much data was downloaded
-		
+
 		_pma_usernames[sessionID] = pmacoreUsername		
 		_pma_sessions[sessionID] = pmacoreURL			
 		if not (sessionID in _pma_slideinfos):
-			_pma_slideinfos[sessionID] = dict()
+			_pma_slideinfos[sessionID] = {}
 		_pma_amount_of_data_downloaded[sessionID] = len(loginresult)
 	
 	return sessionID
@@ -889,7 +894,8 @@ def get_files_for_slide(slideRef, sessionID = None):
 	return retval
 
 def search_slides(startDir, pattern, sessionID = None):
-
+	sessionID = _pma_session_id(sessionID)
+	
 	sessionID = _pma_session_id(sessionID)
 	if (sessionID == _pma_pmacoreliteSessionID):
 		if is_lite():
@@ -909,7 +915,7 @@ def search_slides(startDir, pattern, sessionID = None):
 	global _pma_amount_of_data_downloaded 
 	_pma_amount_of_data_downloaded[sessionID] += len(json)
 	if ("Code" in json):
-		raise Exception("search_slides on  " + pattern + " in " + startDir + " resulted in: " + json["Message"] + " (keep in mind that startDir is case sensitive!)")
+		raise Exception("enumerate_files_for_slide on  " + slideRef + " resulted in: " + json["Message"] + " (keep in mind that slideRef is case sensitive!)")
 	elif ("d" in json):
 		files  = json["d"]
 	else:
