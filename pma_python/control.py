@@ -275,6 +275,19 @@ def _pma_get_case_collections(pmacontrolURL, pmacoreSessionID):
 	except Exception as e:
 		return None
 
+
+def get_case_collections(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
+	"""
+	Retrieve case collection details that belong to a specific project
+	"""
+	colls = {}
+	all_colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
+	for coll in all_colls:
+		if (pmacontrolProjectID == coll["ProjectId"]) and not (coll["Id"] in colls.keys()):
+			colls[coll["Id"]] = coll
+
+	return colls
+	
 def get_case_collection_titles(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
 	"""
 	Retrieve case collections (possibly filtered by project ID), titles only
@@ -345,13 +358,32 @@ def _pma_get_projects(pmacontrolURL, pmacoreSessionID):
 	global _pma_projects_json
 
 	url = pma._pma_join(pmacontrolURL, "api/Projects?sessionID=" + pma._pma_q(pmacoreSessionID))
-	print (url)
 	try:
 		headers = {'Accept': 'application/json'}
 		r = pma._pma_http_get(url, headers)
 		return r.json()
 	except Exception as e:
 		return None		
+
+def get_projects(pmacontrolURL, pmacoreSessionID):
+	"""
+	Retrieve project details for all projects
+	"""
+	all_projects = _pma_get_projects(pmacontrolURL, pmacoreSessionID)
+	projects = {}
+	for prj in all_projects:
+		# summary session-related information so that it makes sense
+		prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
+		
+		# now integrate case collection information
+		colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
+		prj['CaseCollections'] = {}
+		for col in colls:
+			if col['ProjectId'] == prj['Id']:
+				prj['CaseCollections'][col['Id']] = col['Title']
+		projects[prj['Id']] = prj
+		
+	return projects
 
 def get_project_titles(pmacontrolURL, pmacoreSessionID):
 	"""
