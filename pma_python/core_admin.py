@@ -37,6 +37,14 @@ def _pma_check_for_pma_start(method = "", url = None, session = None):
 		else:
 			raise ValueError ("PMA.core.lite not found, and besides; it doesn't support an administrative back-end anyway")
 
+def _pma_http_post(url, data):
+	if (pma._pma_debug == True):
+		print("Posting to", url)
+		print("   with payload", data)
+	resp = requests.post(url, json=data)
+	pma._pma_clear_url_cache()
+	return resp.text
+
 def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
 	"""
 	Attempt to connect to PMA.core instance; success results in a SessionID
@@ -98,9 +106,8 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate =
 		} 
 	}
 	url = _pma_admin_url(admSessionID) + "CreateUser"
-	print(url)
-	createUserReponse = requests.post(url, json=createUserParams)
-	return createUserReponse.text
+	createUserReponse = _pma_http_post(url, createUserParams)
+	return createUserReponse
 	
 def create_amazons3_mounting_point(accessKey, secretKey, path, instanceId, chunkSize = 1048576, serviceUrl = None): 
 	"""
@@ -128,7 +135,25 @@ def create_filesystem_mounting_point(username, password, domainName, path, insta
 		"InstanceId": instanceId	
 	}
 	return createFileSystemMountingPointParams
-	
+
+def create_onedrive_mounting_point():
+	"""
+	Placeholder for future functionality
+	"""
+	return None
+
+def create_dropbox_mounting_point():
+	"""
+	Placeholder for future functionality
+	"""
+	return None
+
+def create_googledrive_mounting_point():
+	"""
+	Placeholder for future functionality
+	"""
+	return None
+
 def	create_root_directory(admSessionID, alias, amazonS3MountingPoints = None, fileSystemMountingPoints = None, description = "Root dir created through pma_python", isPublic = False, isOffline = False):
 	createRootDirectoryParams = {
 		"sessionID": admSessionID,
@@ -144,3 +169,11 @@ def	create_root_directory(admSessionID, alias, amazonS3MountingPoints = None, fi
 	url = _pma_admin_url(admSessionID) + "CreateRootDirectory"
 	createRootDirectoryReponse = requests.post(url, json=createRootDirectoryParams)
 	return createRootDirectoryReponse.text
+
+def create_directory(admSessionID, path):
+	url = _pma_admin_url(admSessionID) + "CreateDirectory"
+	_pma_http_post(url, {"sessionID": admSessionID, "path": path})
+	try:
+		return len(core.get_slides(path)) == 0
+	except:
+		return False
