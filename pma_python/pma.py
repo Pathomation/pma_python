@@ -2,7 +2,7 @@ from urllib.parse import quote
 from os.path import join
 import requests
 
-__version__ = "2.0.0.100"
+__version__ = "2.0.0.101"
 
 _pma_url_content = {}
 _pma_debug = False

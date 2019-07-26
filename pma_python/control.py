@@ -76,20 +76,6 @@ def _pma_format_training_session_properly(sess):
 
 	return sess_data
 
-def get_training_sessions(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
-	"""
-	Retrieve a dictionary with currently defined training sessions in PMA.control.
-	The resulting dictionary use the training session's identifier as the dictionary key, and 
-	therefore this method is easier to quickly retrieve and represent session-related data. 
-	However, this method returns less verbose data than get_training_sessions()
-	"""
-	full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
-	new_training_session_dict = {}
-	for sess in full_training_sessions:
-		if (pmacontrolProjectID is None) or (pmacontrolProjectID == sess["ProjectId"]):				
-			new_training_session_dict[sess["Id"]] = _pma_format_training_session_properly(sess)
-	return new_training_session_dict
-
 def get_training_sessions_for_participant(pmacontrolURL, participantUsername, pmacoreSessionID):
 	full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
 	new_training_session_dict = {}
