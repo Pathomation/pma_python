@@ -42,7 +42,10 @@ def _pma_http_post(url, data):
 		print("Posting to", url)
 		print("   with payload", data)
 	resp = requests.post(url, json=data)
-	pma._pma_clear_url_cache()
+	if pma._pma_debug == True and "code" in resp.text:
+		print(resp.text)
+	else:
+		pma._pma_clear_url_cache()
 	return resp.text
 
 def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
@@ -64,7 +67,7 @@ def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
 		r = pma._pma_http_get(url, headers)
 	except Exception as e:
 		print(e)
-		return None		
+		return None
 	loginresult = r.json()
 
 	# print(loginresult)
@@ -108,7 +111,23 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate =
 	url = _pma_admin_url(admSessionID) + "CreateUser"
 	createUserReponse = _pma_http_post(url, createUserParams)
 	return createUserReponse
-	
+
+def user_exists(admSessionID, u):
+	from pma_python import pma
+	url = (_pma_admin_url(admSessionID) + "SearchUsers?source=Local"
+		+ "&SessionID=" + pma._pma_q(admSessionID)
+		+ "&query=" + pma._pma_q(u))
+	try:
+		r = pma._pma_http_get(url, {'Accept': 'application/json'})
+	except Exception as e:
+		print(e)
+		return None    
+	results = r.json()
+	for usr in results:
+		if usr["Login"].lower() == u.lower():
+			return True
+	return False
+
 def create_amazons3_mounting_point(accessKey, secretKey, path, instanceId, chunkSize = 1048576, serviceUrl = None): 
 	"""
 	create an Amazon S3 mounting point. A list of these is to be used to supply method create_root_directory()
@@ -171,9 +190,57 @@ def	create_root_directory(admSessionID, alias, amazonS3MountingPoints = None, fi
 	return createRootDirectoryReponse.text
 
 def create_directory(admSessionID, path):
-	url = _pma_admin_url(admSessionID) + "CreateDirectory"
-	_pma_http_post(url, {"sessionID": admSessionID, "path": path})
+	try:
+		slides = core.get_slides(path)
+		if pma._pma_debug == True:
+			print("Directory already exists")
+		return False
+	except:
+		url = _pma_admin_url(admSessionID) + "CreateDirectory"
+		result = _pma_http_post(url, {"sessionID": admSessionID, "path": path})
+
 	try:
 		return len(core.get_slides(path)) == 0
 	except:
 		return False
+
+def rename_directory(admSessionID, originalPath, newName):
+	url = _pma_admin_url(admSessionID) + "RenameDirectory"
+	payload = {
+		"sessionID": admSessionID,
+		"path": originalPath,
+		"newName": newName
+	}
+	result = _pma_http_post(url, payload)
+	if "Code" in result:
+		if pma._pma_debug == True:
+			print(result)
+		return False
+		
+	# Sanity check: no slides can be found anymore in the original directory; an error MUST be raised here
+	try:
+		slides = core.get_slides(originalPath)
+	except:
+		# an error was raised, meaning the original directory is no longer available. So that's GOOD :-)
+		return True
+	return False
+
+def delete_directory(admSessionID, path):
+	url = _pma_admin_url(admSessionID) + "DeleteDirectory"
+	payload = {
+		"sessionID": admSessionID,
+		"path": path,
+	}
+	result = _pma_http_post(url, payload)
+	if "Code" in result:
+		if pma._pma_debug == True:
+			print(result)
+		return False
+		
+	# Sanity check: no slides can be found anymore in the original directory; an error MUST be raised here
+	try:
+		slides = core.get_slides(originalPath)
+	except:
+		# an error was raised, meaning the original directory is no longer available. So that's GOOD :-)
+		return True
+	return False
