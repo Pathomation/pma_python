@@ -9,6 +9,7 @@ from xml.dom import minidom
 from pma_python import pma
 
 import requests
+from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
 __version__ = pma.__version__
 
@@ -82,14 +83,14 @@ def _pma_is_lite(pmacoreURL = _pma_pmacoreliteURL):
 		note that PMA.start may not be running, while it is actually installed. This method doesn't detect whether PMA.start is installed; merely whether it's running!
 	if pmacoreURL is specified, then the method checks if there's an instance of PMA.start (results in True), PMA.core (results in False) 
 	or nothing (at least not a Pathomation software platform component) at all (results in None)"""
-	url = pma._pma_join(pmacoreURL, "api/xml/IsLite")
+	url = pma._pma_join(pmacoreURL, "api/json/IsLite")
 	try:
-		contents = urlopen(url).read()
+		r = requests.get(url)
 	except Exception as e:
 		# this happens when NO instance of PMA.core is detected
 		return None
-	dom = minidom.parseString(contents)	
-	return str(dom.firstChild.firstChild.nodeValue).lower() == "true"
+	value = r.json()
+	return value == True
 
 def _pma_api_url(sessionID = None, xml = True):
 	# let's get the base URL first for the specified session
@@ -924,8 +925,6 @@ def get_files_for_slide(slideRef, sessionID = None):
 
 def search_slides(startDir, pattern, sessionID = None):
 	sessionID = _pma_session_id(sessionID)
-	
-	sessionID = _pma_session_id(sessionID)
 	if (sessionID == _pma_pmacoreliteSessionID):
 		if is_lite():
 			raise ValueError ("PMA.core.lite found running, but doesn't support searching.")
@@ -950,3 +949,82 @@ def search_slides(startDir, pattern, sessionID = None):
 	else:
 		files = json
 	return files
+
+
+def upload(local_source_slide, target_folder, target_pma_core_sessionID, callback = None):
+	"""
+		Uploads a slide to a PMA.core server. Requires a PMA.start installation
+		:param str local_source_slide: The local PMA.start relative file to upload
+		:param str target_folder: The root directory and path to upload to the PMA.core server
+		:param str target_pma_core_sessionID: A valid session id for a PMA.core server
+		:param function|boolean callback: If True a default progress will be printed. If a function is passed it will be called for progress on each file upload. 
+						The function has the following signature
+						`callback(bytes_read, bytes_length, filename)`
+	"""
+	if not _pma_is_lite():
+		raise Exception("No PMA.start found on localhost. Are you sure it is running?")
+
+	if not target_folder:
+		raise ValueError("target_folder cannot be empty")
+
+	if (target_folder.startswith("/")):
+		target_folder = target_folder[1:]	
+
+	files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
+	sessionID = _pma_session_id(target_pma_core_sessionID)
+	url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
+	
+	mainDirectory = ''
+	for i, f in enumerate(files):
+		md = os.path.dirname(f)
+		if i == 0 or len(md) < len(mainDirectory):
+			mainDirectory = md
+
+	uploadFiles = []
+	for i, filepath in enumerate(files):
+		s = os.path.getsize(filepath)
+		if s > 0:
+			uploadFiles.append({
+				"Path": filepath.replace(mainDirectory, '').strip("\\"),
+				"Length" : s,
+				"IsMain": i == len(files) - 1,
+				"FullPath": filepath
+			})
+
+	data = { 
+		"Path": target_folder,
+		"Files" : uploadFiles
+	}
+
+	uploadHeaderResponse = requests.post(url, json=data)
+	if not uploadHeaderResponse.status_code == 200:
+		raise Exception(uploadHeaderResponse.json()["Message"])
+
+	uploadHeader = uploadHeaderResponse.json()
+
+	uploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(uploadHeader["Id"])  + "?sessionID=" + pma._pma_q(sessionID) + "&path={0}" 
+
+	for f in uploadFiles:
+		e = MultipartEncoder(fields={ "file": ( os.path.basename(f["Path"]), open(f["FullPath"], 'rb'), 'application/octet-stream')})
+		
+		_callback = None
+		if callback == True:
+			print("Uploading file: {0}".format( e.fields["file"][0]))
+			_callback = lambda x: upload_callback(monitor, e.fields["file"][0])
+		elif callable(callback):
+			_callback = lambda x: callback(x.bytes_read, x.len, e.fields["file"][0])
+		
+		monitor = MultipartEncoderMonitor(e, _callback)
+
+		monitor.previous = 0
+		
+		r = requests.post(uploadUrl.format(f["Path"]), data=monitor, headers={'Content-Type': monitor.content_type})
+
+		if not r.status_code == 200:
+			raise Exception("Error uploading file {0}: {1}".format(f["Path"], r.json()["Message"]))
+
+def upload_callback(monitor, filename):
+	v = monitor.bytes_read / monitor.len
+	if not monitor.previous or v - monitor.previous > 0.05 or (v - monitor.previous > 0 and monitor.bytes_read == monitor.len):
+		print("{0:.0%}".format(monitor.bytes_read / monitor.len))
+		monitor.previous = v
