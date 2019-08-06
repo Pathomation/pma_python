@@ -210,7 +210,7 @@ def rename_directory(admSessionID, originalPath, newName):
 		"sessionID": admSessionID,
 		"path": originalPath,
 		"newName": newName
-	}
+		}
 	result = _pma_http_post(url, payload)
 	if "Code" in result:
 		if pma._pma_debug == True:
