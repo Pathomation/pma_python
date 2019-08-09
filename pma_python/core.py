@@ -283,7 +283,7 @@ def analyse_corresponding_root_directories(sessionIDs):
 	# create a dictionary all_rds that contains a list of all root-directories per sessionID
 	all_rds = {}
 	all_urls = []
-	for sess in sessions:
+	for sess in sessionIDs:
 		url = who_am_i(sess)["url"]
 		all_urls.append(url)
 		rds = get_root_directories(sess)
