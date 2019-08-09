@@ -270,6 +270,47 @@ def get_root_directories(sessionID = None):
 	dom = minidom.parseString(contents)
 	return _pma_XmlToStringArray(dom.firstChild)
 
+def _pma_merge_dict_values(dicts):
+	res = []
+	for (_, lst) in dicts.items():
+		for el in lst:
+			el=str(el)
+			if el not in res:
+				res.append(el)
+	return res
+
+def analyse_corresponding_root_directories(sessionIDs):
+	# create a dictionary all_rds that contains a list of all root-directories per sessionID
+	all_rds = {}
+	all_urls = []
+	for session in sessions:
+		url = who_am_i(session)["url"]
+		all_urls.append(url)
+		rds = get_root_directories(session)
+		all_rds[url] = rds
+	# pp.pprint(all_rds)	
+	
+	# create a linear list to use as index a pandas DataFrame.
+	# This list contains ALL root-directories, regardless of the PMA.core instance where they occur
+	root_dirs = _pma_merge_dict_values(all_rds)
+
+	# create a blank DataFrame; rows = root-directories; columns = PMA.core instances
+	df = pd.DataFrame(index = root_dirs, columns = all_urls)
+	
+	# fill up the cells in the DataFrame with True or False, depending on whether the root-dir exists at a specific instance
+	for rd in root_dirs:
+		for url in all_urls:
+			for el in all_rds[url]:
+				if str(el) == str(rd):
+					df.loc[rd][url] = True
+					break
+			if not (df.loc[rd][url] == True):
+				df.loc[rd][url] = False		   
+	
+	# Add a aggregation colums that indicates how many times a specific root-dir was found across all sessionIDs
+	df["count"] = (df == True).sum(axis=1)				
+	return df
+
 def get_directories(startDir, sessionID = None, recursive = False):
 	"""
 	Return an array of sub-directories available to sessionID in the startDir directory
@@ -950,6 +991,11 @@ def search_slides(startDir, pattern, sessionID = None):
 		files = json
 	return files
 
+def _pma_upload_callback(monitor, filename):
+	v = monitor.bytes_read / monitor.len
+	if not monitor.previous or v - monitor.previous > 0.05 or (v - monitor.previous > 0 and monitor.bytes_read == monitor.len):
+		print("{0:.0%}".format(monitor.bytes_read / monitor.len))
+		monitor.previous = v
 
 def upload(local_source_slide, target_folder, target_pma_core_sessionID, callback = None):
 	"""
@@ -1010,7 +1056,7 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 		_callback = None
 		if callback == True:
 			print("Uploading file: {0}".format( e.fields["file"][0]))
-			_callback = lambda x: upload_callback(monitor, e.fields["file"][0])
+			_callback = lambda x: _pma_upload_callback(monitor, e.fields["file"][0])
 		elif callable(callback):
 			_callback = lambda x: callback(x.bytes_read, x.len, e.fields["file"][0])
 		
@@ -1022,9 +1068,3 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
 		if not r.status_code == 200:
 			raise Exception("Error uploading file {0}: {1}".format(f["Path"], r.json()["Message"]))
-
-def upload_callback(monitor, filename):
-	v = monitor.bytes_read / monitor.len
-	if not monitor.previous or v - monitor.previous > 0.05 or (v - monitor.previous > 0 and monitor.bytes_read == monitor.len):
-		print("{0:.0%}".format(monitor.bytes_read / monitor.len))
-		monitor.previous = v
