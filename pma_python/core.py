@@ -409,7 +409,7 @@ def get_slides(startDir, sessionID = None, recursive = False):
 				
 	return slides
 
-def analyse_corresponding_slides(sessionPathDict, recursive = False):
+def analyse_corresponding_slides(sessionPathDict, recursive = False, includeFingerprint = False):
 	"""
 	Return a pandas DataFrame that indicates which slides exist on which PMA.core instances
 	:param dict sessionPathDict: a dictionary that looks e.g. like {DevSessionID: rootDirAndPath1, ProdSessionID: rootDirAndPath2 }
@@ -418,7 +418,7 @@ def analyse_corresponding_slides(sessionPathDict, recursive = False):
 
 	all_slides = {}
 	all_urls = []
-	for (sessionID, path) in SessionPathDict.items():
+	for (sessionID, path) in sessionPathDict.items():
 		if (path[-1:]) != "/":
 			path = path + "/"
 		url = who_am_i(sessionID)["url"] + "[" + path + "]"
@@ -441,6 +441,11 @@ def analyse_corresponding_slides(sessionPathDict, recursive = False):
 				df.loc[sl][url] = False
 
 	df["count"] = (df == True).sum(axis=1)
+	
+	if includeFingerprint == True:
+		num_urls = len(all_urls)
+		print("Number of URLs: ", num_urls)
+		
 	return df
 
 
