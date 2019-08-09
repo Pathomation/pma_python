@@ -281,6 +281,9 @@ def _pma_merge_dict_values(dicts):
 	return res
 
 def analyse_corresponding_root_directories(sessionIDs):
+	"""
+	Return a pandas DataFrame that indicates which root-directories exist on which PMA.core instances
+	"""
 	# create a dictionary all_rds that contains a list of all root-directories per sessionID
 	all_rds = {}
 	all_urls = []
@@ -405,6 +408,41 @@ def get_slides(startDir, sessionID = None, recursive = False):
 				slides = slides + get_slides(dir, sessionID, recursive - 1)
 				
 	return slides
+
+def analyse_corresponding_slides(sessionPathDict, recursive = False):
+	"""
+	Return a pandas DataFrame that indicates which slides exist on which PMA.core instances
+	:param dict sessionPathDict: a dictionary that looks e.g. like {DevSessionID: rootDirAndPath1, ProdSessionID: rootDirAndPath2 }
+	:param bool recursive: indicates whether the method should look in sub-directories or not
+	"""
+
+	all_slides = {}
+	all_urls = []
+	for (sessionID, path) in SessionPathDict.items():
+		if (path[-1:]) != "/":
+			path = path + "/"
+		url = who_am_i(sessionID)["url"] + "[" + path + "]"
+		all_urls.append(url)
+		slides = get_slides(path, recursive = recursive, sessionID = sessionID)
+		slides = [sl.replace(path, ".../") for sl in slides]
+		all_slides[url] = slides
+
+	final_slide_list = _pma_merge_dict_values(all_slides)
+
+	df = pd.DataFrame(index = final_slide_list, columns = all_urls)
+
+	for sl in final_slide_list:
+		for url in all_urls:
+			for el in all_slides[url]:
+				if str(sl) == str(el):
+					df.loc[sl][url] = True
+					break
+			if not (df.loc[sl][url] == True):
+				df.loc[sl][url] = False
+
+	df["count"] = (df == True).sum(axis=1)
+	return df
+
 
 def get_slide_file_extension(slideRef):
 	"""
