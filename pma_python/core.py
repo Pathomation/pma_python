@@ -145,12 +145,12 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 	url = pma._pma_join(pmacoreURL, "api/json/GetVersionInfo")
 	if pma._pma_debug == True:
 		print(url)
-		
+
 	try:
 		r = requests.get(url)
 	except:
 		return None
-		
+
 	json = r.json()
 	version = None
 	if ("Code" in json):
@@ -159,19 +159,19 @@ def get_version_info(pmacoreURL = _pma_pmacoreliteURL):
 		version  = json["d"]
 	else:
 		version = json
-		
+
 	return version
 
 def get_api_version(pmacoreURL = _pma_pmacoreliteURL):
 	url = pma._pma_join(pmacoreURL, "api/json/GetAPIVersion")
 	if pma._pma_debug == True:
 		print(url)
-		
+
 	try:
 		r = requests.get(url)
 	except:
 		return None
-		
+
 	try:
 		json = r.json()
 	except:
@@ -283,10 +283,10 @@ def analyse_corresponding_root_directories(sessionIDs):
 	# create a dictionary all_rds that contains a list of all root-directories per sessionID
 	all_rds = {}
 	all_urls = []
-	for session in sessions:
-		url = who_am_i(session)["url"]
+	for sess in sessions:
+		url = who_am_i(sess)["url"]
 		all_urls.append(url)
-		rds = get_root_directories(session)
+		rds = get_root_directories(sess)
 		all_rds[url] = rds
 	# pp.pprint(all_rds)	
 	
