@@ -9,6 +9,7 @@ from xml.dom import minidom
 from pma_python import pma
 
 import requests
+import pandas as pd
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
 __version__ = pma.__version__
