@@ -1,4 +1,5 @@
 import os
+import datetime
 from math import ceil
 from PIL import Image
 from random import choice
@@ -220,6 +221,9 @@ def connect(pmacoreURL = _pma_pmacoreliteURL, pmacoreUsername = "", pmacorePassw
 		url += "&username=" + pma._pma_q(pmacoreUsername)
 	if (pmacorePassword != ""):
 		url += "&password=" + pma._pma_q(pmacorePassword)
+
+	if (pma._pma_debug == True):
+		print(url)
 	
 	try:
 		headers = {'Accept': 'application/json'}
@@ -443,6 +447,7 @@ def analyse_corresponding_slides(sessionPathDict, recursive = False, includeFing
 	df["count"] = (df == True).sum(axis=1)
 	
 	if includeFingerprint == True:
+		slides_to_check = df[df["count"] == len(all_urls)]
 		num_urls = len(all_urls)
 		print("Number of URLs: ", num_urls)
 		
@@ -672,6 +677,11 @@ def is_multi_layer(slideRef, sessionID = None):
 	"""Determine whether a slide contains multiple (stacked) layers or not"""
 	return get_number_of_layers(slideRef, sessionID) > 1
 
+def get_last_modified_date(slideRef, sessionID = None):
+	info = get_slide_info(slideRef, sessionID)
+	lms = info["LastModified"].strip("/").replace("Date(", "").replace(")","")
+	return datetime.datetime.fromtimestamp(int(lms)/1000.0)
+	
 def is_z_stack(slideRef, sessionID = None):
 	"""Determine whether a slide is a z-stack or not"""
 	return is_multi_layer(slideRef, sessionID)
