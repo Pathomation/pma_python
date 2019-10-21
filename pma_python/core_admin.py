@@ -92,6 +92,19 @@ def admin_disconnect(admSessionID = None):
 	"""
 	return core.disconnect(admSessionID)
 
+def send_email_reminder(admSessionID, login, subject = "PMA.core password reminder"):
+	"""
+	Send out an email reminder to the address associated with user login
+	"""
+	reminderParams = { 
+		"username": login,
+		"subject": subject,
+		"messageTemplate": ""
+	}
+	url = _pma_admin_url(admSessionID) + "EmailPassword"
+	reminderResponse = _pma_http_post(url, reminderParams)
+	return reminderResponse
+
 def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate = False, isAdmin = False, isSuspended = False):
 	print("Using credentials from ", admSessionID)
 	
@@ -109,8 +122,8 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate =
 		} 
 	}
 	url = _pma_admin_url(admSessionID) + "CreateUser"
-	createUserReponse = _pma_http_post(url, createUserParams)
-	return createUserReponse
+	createUserResponse = _pma_http_post(url, createUserParams)
+	return createUserResponse
 
 def user_exists(admSessionID, u):
 	from pma_python import pma
