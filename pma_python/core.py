@@ -337,8 +337,7 @@ def get_directories(startDir, sessionID=None, recursive=False):
     Return an array of sub-directories available to sessionID in the startDir directory
     """
     sessionID = _pma_session_id(sessionID)
-    url = _pma_api_url(sessionID,
-                       False) + "GetDirectories?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+    url = _pma_api_url(sessionID) + "GetDirectories?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
     if pma._pma_debug is True:
         print(url)
     r = requests.get(url)
@@ -407,8 +406,7 @@ def get_slides(startDir, sessionID=None, recursive=False):
     sessionID = _pma_session_id(sessionID)
     if (startDir.startswith("/")):
         startDir = startDir[1:]
-    url = _pma_api_url(sessionID,
-                       False) + "GetFiles?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+    url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
     r = requests.get(url)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -519,8 +517,7 @@ def get_fingerprint(slideRef, sessionID=None):
     Get the fingerprint for a specific slide
     """
     sessionID = _pma_session_id(sessionID)
-    url = _pma_api_url(
-        sessionID, False) + "GetFingerprint?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+    url = _pma_api_url(sessionID) + "GetFingerprint?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
     r = requests.get(url)
     json = r.json()
@@ -587,8 +584,7 @@ def get_slide_info(slideRef, sessionID=None):
     global _pma_slideinfos
 
     if (not (slideRef in _pma_slideinfos[sessionID])):
-        url = _pma_api_url(
-            sessionID, False) + "GetImageInfo?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+        url = _pma_api_url(sessionID) + "GetImageInfo?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
         r = requests.get(url)
         json = r.json()
         global _pma_amount_of_data_downloaded
@@ -778,8 +774,7 @@ def get_barcode_text(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    url = _pma_api_url(
-        sessionID, False) + "GetBarcodeText?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+    url = _pma_api_url(sessionID) + "GetBarcodeText?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -875,9 +870,7 @@ def get_submitted_forms(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    url = _pma_api_url(
-        sessionID,
-        False) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+    url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
     all_forms = get_available_forms(slideRef, sessionID)
     print(url)
     r = requests.get(url)
@@ -904,9 +897,7 @@ def get_submitted_form_data(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    url = _pma_api_url(
-        sessionID,
-        False) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+    url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
     print(url)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
@@ -932,10 +923,9 @@ def get_available_forms(slideRef=None, sessionID=None):
         if (slideRef.startswith("/")):
             slideRef = slideRef[1:]
         dir = os.path.split(slideRef)[0]
-        url = _pma_api_url(sessionID,
-                           False) + "GetForms?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(dir)
+        url = _pma_api_url(sessionID) + "GetForms?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(dir)
     else:
-        url = _pma_api_url(sessionID, False) + "GetForms?sessionID=" + pma._pma_q(sessionID)
+        url = _pma_api_url(sessionID) + "GetForms?sessionID=" + pma._pma_q(sessionID)
 
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
@@ -959,7 +949,7 @@ def prepare_form_dictionary(formID, sessionID=None):
     if (formID is None):
         return None
     sessionID = _pma_session_id(sessionID)
-    url = _pma_api_url(sessionID, False) + "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
+    url = _pma_api_url(sessionID) + "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -996,8 +986,7 @@ def get_annotations(slideRef, sessionID=None):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     dir = os.path.split(slideRef)[0]
-    url = _pma_api_url(
-        sessionID, False) + "GetAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+    url = _pma_api_url(sessionID) + "GetAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
@@ -1084,11 +1073,10 @@ def get_files_for_slide(slideRef, sessionID=None):
         slideRef = slideRef[1:]
 
     if (sessionID == _pma_pmacoreliteSessionID):
-        url = _pma_api_url(sessionID, False) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(
+        url = _pma_api_url(sessionID) + "EnumerateAllFilesForSlide?sessionID=" + pma._pma_q(
             sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
     else:
-        url = _pma_api_url(
-            sessionID, False) + "getfilenames?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+        url = _pma_api_url(sessionID) + "getfilenames?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
     r = requests.get(url)
     json = r.json()
