@@ -9,6 +9,8 @@ from urllib.request import urlopen
 from pma_python import pma
 
 import requests
+import shutil
+import re
 import pandas as pd
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
@@ -1170,7 +1172,7 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         s = os.path.getsize(filepath)
         if s > 0:
             uploadFiles.append({
-                "Path": filepath.replace(mainDirectory, '').strip("\\"),
+                "Path": filepath.replace(mainDirectory, '').strip("\\").strip('/'),
                 "Length": s,
                 "IsMain": i == len(files) - 1,
                 "FullPath": filepath
@@ -1184,10 +1186,17 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
     uploadHeader = uploadHeaderResponse.json()
 
-    uploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(
+    pmaCoreUploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(
         uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID) + "&path={0}"
 
-    for f in uploadFiles:
+    isAmazonUpload = True
+    if not uploadHeader['Urls']:
+        isAmazonUpload = False
+        uploadHeader['Urls'] = [pmaCoreUploadUrl.format(f["Path"]) for f in uploadFiles]
+
+    for i, f in enumerate(uploadFiles):
+        uploadUrl = uploadHeader['Urls'][i]
+
         e = MultipartEncoder(
             fields={"file": (os.path.basename(f["Path"]), open(f["FullPath"], 'rb'), 'application/octet-stream')})
 
@@ -1202,7 +1211,73 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
         monitor.previous = 0
 
-        r = requests.post(uploadUrl.format(f["Path"]), data=monitor, headers={'Content-Type': monitor.content_type})
+        r = None
+        if not isAmazonUpload:
+            r = requests.post(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
+        else:
+            r = requests.put(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
 
         if not r.status_code == 200:
             raise Exception("Error uploading file {0}: {1}".format(f["Path"], r.json()["Message"]))
+
+
+def download(slide, save_directory=None, sessionID=None):
+    """
+        Downloads a slide from a PMA.core server.
+        :param str slide: The virtual path to the slide
+        :param str save_directory: The local directory to save the downloaded files to
+        :param str sessionID: The sessionID to authenticate to the pma.core server
+    """
+    def get_filename_from_cd(cd):
+        """
+        Get filename from content-disposition
+        """
+        if not cd:
+            return None
+        fname = re.findall('filename=(\S+)', cd)
+        if len(fname) == 0:
+            return None
+        return fname[0].strip(";")
+
+    if not slide:
+        raise ValueError("slide cannot be empty")
+
+    if save_directory and not os.path.exists(save_directory):
+        raise ValueError("The output directory does not exist {}".format(save_directory))
+    
+    sessionID = _pma_session_id(sessionID)
+    files = get_files_for_slide(slide, sessionID)
+    if not files:
+        raise ValueError("Slide not found")
+    
+    mainDirectory = slide.rsplit('/', 1)[0]
+   
+    for f in files:
+        relativePath = f.replace(mainDirectory, '').strip("\\").strip("/")
+        pmaCoreDownloadUrl = _pma_url(sessionID) + "transfer/Download/"
+
+        print("Downloading file {} for slide {}".format(relativePath, slide))
+        params = {"sessionId": sessionID, "image": slide, "path": relativePath}
+
+        with requests.get(pmaCoreDownloadUrl, params=params, stream=True) as r:
+            r.raise_for_status()
+
+            total = int(r.headers.get('content-length'))
+            downloaded = 0
+
+            if save_directory:
+                filePath = os.path.join(save_directory, relativePath)
+
+            dir = os.path.dirname(filePath)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            prev = -1
+            with open(filePath, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=10 * 1024):
+                    if chunk:
+                        downloaded += len(chunk)
+                        f.write(chunk)
+                        progress = downloaded / total
+                        if not prev or progress - prev > 0.05 or (progress - prev > 0 and downloaded == total):
+                            print("{0:.0%}".format(progress))
+                            prev = progress
