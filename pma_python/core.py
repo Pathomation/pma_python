@@ -510,8 +510,8 @@ def get_uid(slideRef, sessionID=None):
     if ("Code" in json):
         raise Exception("get_uid on  " + slideRef + " resulted in: " + json["Message"])
     else:
-        fingerprint = json
-    return fingerprint
+        uid = json
+    return uid
 
 
 def get_fingerprint(slideRef, sessionID=None):
