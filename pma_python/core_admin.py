@@ -254,3 +254,27 @@ def delete_directory(admSessionID, path):
             print(result)
         return False
     return True
+
+def reverse_uid(admSessionID, slideRefUid):
+    """
+    lookup the reverse path of a UID for a specific slide
+    """
+    if (admSessionID == core._pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError(
+                "PMA.core.lite found running, but doesn't support UIDs. For advanced anonymization, please upgrade to PMA.core."
+            )
+        else:
+            raise ValueError(
+                "PMA.core.lite not found, and besides; it doesn't support UIDs. For advanced anonymization, please upgrade to PMA.core."
+            )
+    url = _pma_admin_url(admSessionID) + "ReverseLookupUID?sessionID=" + pma._pma_q(admSessionID) + "&uid=" + pma._pma_q(slideRefUid)
+    if (pma._pma_debug is True):
+        print(url)
+    r = requests.get(url)
+    json = r.json()
+    if ("Code" in json):
+        raise Exception("reverse_uid on  " + slideRefUid + " resulted in: " + json["Message"])
+    else:
+        path = json
+    return path
