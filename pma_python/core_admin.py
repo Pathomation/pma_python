@@ -63,6 +63,9 @@ def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
     url += "&username=" + pma._pma_q(pmacoreAdmUsername)
     url += "&password=" + pma._pma_q(pmacoreAdmPassword)
 
+    if (pma._pma_debug is True):
+        print(url)
+
     try:
         headers = {'Accept': 'application/json'}
         # r = requests.get(url, headers=headers)
@@ -275,6 +278,30 @@ def reverse_uid(admSessionID, slideRefUid):
     json = r.json()
     if ("Code" in json):
         raise Exception("reverse_uid on  " + slideRefUid + " resulted in: " + json["Message"])
+    else:
+        path = json
+    return path
+
+def reverse_root_directory(admSessionID, alias):
+    """
+    lookup the reverse path of a root-directory
+    """
+    if (admSessionID == core._pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError(
+                "PMA.core.lite found running, but doesn't support this method."
+            )
+        else:
+            raise ValueError(
+                "PMA.core.lite not found, and besides; it doesn't support this method."
+            )
+    url = _pma_admin_url(admSessionID) + "ReverseLookupRootDirectory?sessionID=" + pma._pma_q(admSessionID) + "&alias=" + pma._pma_q(alias)
+    if (pma._pma_debug is True):
+        print(url)
+    r = requests.get(url)
+    json = r.json()
+    if ("Code" in json):
+        raise Exception("reverse_root_directory on  " + alias + " resulted in: " + json["Message"])
     else:
         path = json
     return path
