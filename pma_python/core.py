@@ -149,7 +149,7 @@ def get_version_info(pmacoreURL=_pma_pmacoreliteURL):
     # _pma_api_url() takes session information into account
 
     url = pma._pma_join(pmacoreURL, "api/json/GetVersionInfo")
-    if pma._pma_debug is True:
+    if pma._pma_debug == True:
         print(url)
 
     try:
@@ -171,7 +171,7 @@ def get_version_info(pmacoreURL=_pma_pmacoreliteURL):
 
 def get_api_version(pmacoreURL=_pma_pmacoreliteURL):
     url = pma._pma_join(pmacoreURL, "api/json/GetAPIVersion")
-    if pma._pma_debug is True:
+    if pma._pma_debug == True:
         print(url)
 
     try:
@@ -229,7 +229,7 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     if (pmacorePassword != ""):
         url += "&password=" + pma._pma_q(pmacorePassword)
 
-    if (pma._pma_debug is True):
+    if (pma._pma_debug == True):
         print(url)
 
     try:
@@ -340,7 +340,7 @@ def get_directories(startDir, sessionID=None, recursive=False):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "GetDirectories?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
-    if pma._pma_debug is True:
+    if pma._pma_debug == True:
         print(url)
     r = requests.get(url)
     json = r.json()
@@ -374,7 +374,7 @@ def get_first_non_empty_directory(startDir=None, sessionID=None):
     try:
         slides = get_slides(startDir=startDir, sessionID=sessionID)
     except Exception:
-        if pma._pma_debug is True:
+        if pma._pma_debug == True:
             print("Unable to examine", startDir)
         if (startDir != "/"):
             return slides
@@ -391,7 +391,7 @@ def get_first_non_empty_directory(startDir=None, sessionID=None):
             try:
                 dirs = get_directories(startDir, sessionID)
             except Exception:
-                if pma._pma_debug is True:
+                if pma._pma_debug == True:
                     print("Unable to examine", startDir)
             else:
                 for dir in dirs:
@@ -587,6 +587,8 @@ def get_slide_info(slideRef, sessionID=None):
 
     if (not (slideRef in _pma_slideinfos[sessionID])):
         url = _pma_api_url(sessionID) + "GetImageInfo?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+        if pma._pma_debug == True:
+            print(url)
         r = requests.get(url)
         json = r.json()
         global _pma_amount_of_data_downloaded
@@ -1061,7 +1063,7 @@ def show_slide(slideRef, sessionID=None):
             url += ("viewer/index.htm" + "?sessionID=" + pma._pma_q(sessionID) + "^&pathOrUid=" + pma._pma_q(slideRef)
                     )  # note the ^& to escape a regular &
 
-    if (pma._pma_debug is True):
+    if (pma._pma_debug == True):
         print(url)
     os.system(os_cmd + url)
 
@@ -1114,7 +1116,7 @@ def search_slides(startDir, pattern, sessionID=None):
 
     url = _pma_query_url(sessionID) + "Filename?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(
         startDir) + "&pattern=" + pma._pma_q(pattern)
-    if pma._pma_debug is True:
+    if pma._pma_debug == True:
         print("url =", url)
 
     r = requests.get(url)
@@ -1221,10 +1223,10 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
             raise Exception("Error uploading file {0}: {1}".format(f["Path"], r.json()["Message"]))
 
 
-def download(slide, save_directory=None, sessionID=None):
+def download(slideRef, save_directory=None, sessionID=None):
     """
         Downloads a slide from a PMA.core server.
-        :param str slide: The virtual path to the slide
+        :param str slideRef: The virtual path to the slide
         :param str save_directory: The local directory to save the downloaded files to
         :param str sessionID: The sessionID to authenticate to the pma.core server
     """
@@ -1239,25 +1241,27 @@ def download(slide, save_directory=None, sessionID=None):
             return None
         return fname[0].strip(";")
 
-    if not slide:
+    if not slideRef:
         raise ValueError("slide cannot be empty")
 
     if save_directory and not os.path.exists(save_directory):
         raise ValueError("The output directory does not exist {}".format(save_directory))
     
     sessionID = _pma_session_id(sessionID)
-    files = get_files_for_slide(slide, sessionID)
+    files = get_files_for_slide(slideRef, sessionID)
     if not files:
         raise ValueError("Slide not found")
     
-    mainDirectory = slide.rsplit('/', 1)[0]
+    mainDirectory = slideRef.rsplit('/', 1)[0]
    
     for f in files:
         relativePath = f.replace(mainDirectory, '').strip("\\").strip("/")
         pmaCoreDownloadUrl = _pma_url(sessionID) + "transfer/Download/"
 
-        print("Downloading file {} for slide {}".format(relativePath, slide))
-        params = {"sessionId": sessionID, "image": slide, "path": relativePath}
+        if pma._pma_debug == True:
+            print("Downloading file {} for slide {}".format(relativePath, slideRef))
+
+        params = {"sessionId": sessionID, "image": slideRef, "path": relativePath}
 
         with requests.get(pmaCoreDownloadUrl, params=params, stream=True) as r:
             r.raise_for_status()
@@ -1279,5 +1283,6 @@ def download(slide, save_directory=None, sessionID=None):
                         f.write(chunk)
                         progress = downloaded / total
                         if not prev or progress - prev > 0.05 or (progress - prev > 0 and downloaded == total):
-                            print("{0:.0%}".format(progress))
+                            if pma._pma_debug == True:
+                                print("{0:.0%}".format(progress))
                             prev = progress
