@@ -16,6 +16,22 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncod
 
 __version__ = pma.__version__
 
+pma_annotation_source_format_pathomation = 0
+pma_annotation_source_format_native = 1
+pma_annotation_source_format_visiopharm = 2
+pma_annotation_source_format_indicalabs = 3
+pma_annotation_source_format_aperio = 4
+pma_annotation_source_format_definiens = 4
+pma_annotation_source_format_xml = 4
+
+pma_annotation_target_format_pathomation = 2
+pma_annotation_target_format_visiopharm = 0
+pma_annotation_target_format_indicalabs = 1
+pma_annotation_target_format_aperio = 3
+pma_annotation_target_format_definiens = 3
+pma_annotation_target_format_xml = 3
+pma_annotation_target_format_csv = 4
+
 # internal module helper variables and functions
 _pma_sessions = dict()
 _pma_usernames = dict()
@@ -226,11 +242,10 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     url = pma._pma_join(pmacoreURL, "api/json/authenticate?caller=SDK.Python")
     if (pmacoreUsername != ""):
         url += "&username=" + pma._pma_q(pmacoreUsername)
+        if (pma._pma_debug is True):
+            print("Authenticating via", url + "&password=TOP_SECRET")
     if (pmacorePassword != ""):
         url += "&password=" + pma._pma_q(pmacorePassword)
-
-    if (pma._pma_debug == True):
-        print(url)
 
     try:
         headers = {'Accept': 'application/json'}
@@ -409,6 +424,8 @@ def get_slides(startDir, sessionID=None, recursive=False):
     if (startDir.startswith("/")):
         startDir = startDir[1:]
     url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -599,6 +616,8 @@ def get_slide_info(slideRef, sessionID=None):
             _pma_slideinfos[sessionID][slideRef] = json["d"]
         else:
             _pma_slideinfos[sessionID][slideRef] = json
+    elif pma._pma_debug == True:
+        print("Getting slide info from cache")
 
     return _pma_slideinfos[sessionID][slideRef]
 
@@ -1005,6 +1024,23 @@ def get_annotations(slideRef, sessionID=None):
         annotations = ""
     return annotations
 
+def export_annotations(slideRef, annotation_source_format = [pma_annotation_source_format_pathomation], annotation_target_format = pma_annotation_target_format_xml, sessionID=None):
+    """
+    Retrieve the annotations for slide slideRef
+    """
+    sessionID = _pma_session_id(sessionID)
+    if (slideRef.startswith("/")):
+        slideRef = slideRef[1:]
+    url = _pma_api_url(sessionID) + "ExportAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef) + "&format=" + pma._pma_q(annotation_target_format)
+    if (pma._pma_debug is True):
+        print(url)
+
+    r = requests.get(url)
+
+    if (r.ok):
+        return BytesIO(r.content)
+    else:
+        raise ValueError("Unable to get annotations ("+r.status_code+")")
 
 def get_tiles(slideRef,
               fromX=0,
