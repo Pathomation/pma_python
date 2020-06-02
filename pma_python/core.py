@@ -1032,7 +1032,7 @@ def export_annotations(slideRef, annotation_source_format = [pma_annotation_sour
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     source_format = "&source=" + pma._pma_q(",".join(annotation_source_format))
-	tgt_format = "&format=" + pma._pma_q(annotation_target_format)
+    tgt_format = "&format=" + pma._pma_q(annotation_target_format)
     url = _pma_api_url(sessionID) + "ExportAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef) + tgt_format + source_format
     if (pma._pma_debug is True):
         print(url)
