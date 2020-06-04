@@ -1029,10 +1029,12 @@ def export_annotations(slideRef, annotation_source_format = [pma_annotation_sour
     Retrieve the annotations for slide slideRef
     """
     sessionID = _pma_session_id(sessionID)
+    if (not(isinstance(annotation_source_format, list))):
+        annotation_source_format = [str(annotation_source_format)]
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     source_format = "&source=" + pma._pma_q(",".join(annotation_source_format))
-    tgt_format = "&format=" + pma._pma_q(annotation_target_format)
+    tgt_format = "&format=" + pma._pma_q(str(annotation_target_format))
     url = _pma_api_url(sessionID) + "ExportAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef) + tgt_format + source_format
     if (pma._pma_debug is True):
         print(url)
@@ -1042,7 +1044,7 @@ def export_annotations(slideRef, annotation_source_format = [pma_annotation_sour
     if (r.ok):
         return BytesIO(r.content)
     else:
-        raise ValueError("Unable to get annotations ("+r.status_code+")")
+        raise ValueError("Unable to get annotations ("+str(r.status_code)+")")
     return None
 	
 def get_tiles(slideRef,
