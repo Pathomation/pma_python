@@ -888,6 +888,47 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
     return img
 
 
+
+def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0):
+    """
+    Gets a region of the slide at the specified scale 
+    Format can be 'jpg' or 'png'
+    Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
+    x,y,width,height is the region to get
+    rotation is the rotation in degrees of the slide to get
+    """
+    sessionID = _pma_session_id(sessionID)
+    if (slideRef.startswith("/")):
+        slideRef = slideRef[1:]
+
+    url = _pma_url(sessionID) + "region"
+    if url is None:
+        raise Exception(
+            "Unable to determine the PMA.core instance belonging to " + str(sessionID))
+
+    params = {
+        "sessionID": sessionID,
+        "channels": 0,
+        "timeframe": 0,
+        "layer": int(round(zstack)),
+        "pathOrUid": slideRef,
+        "x": int(round(x)),
+        "y": int(round(y)),
+        "width": int(round(width)),
+        "height": int(round(height)),
+        "scale": float(scale),
+        "format": format,
+        "quality": quality,
+        "rotation": float(rotation),
+    }
+
+    r = requests.get(url, params=params)
+    img = Image.open(BytesIO(r.content))
+    global _pma_amount_of_data_downloaded
+    _pma_amount_of_data_downloaded[sessionID] += len(r.content)
+    return img
+
+
 def get_submitted_forms(slideRef, sessionID=None):
     """Find out what forms where submitted for a specific slide"""
     sessionID = _pma_session_id(sessionID)
