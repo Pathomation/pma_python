@@ -796,6 +796,8 @@ def get_barcode_text(slideRef, sessionID=None):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetBarcodeText?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
