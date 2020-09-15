@@ -827,9 +827,8 @@ def get_label_image(slideRef, sessionID=None):
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
-
-
-def get_thumbnail_url(slideRef, sessionID=None):
+µ
+def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the thumbnail for a slide"""
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
@@ -837,19 +836,19 @@ def get_thumbnail_url(slideRef, sessionID=None):
     url = (_pma_url(sessionID) + "thumbnail" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
     return url
 
-
-def get_thumbnail_image(slideRef, sessionID=None):
+def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     """Get the thumbnail image for a slide"""
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    url = get_thumbnail_url(slideRef, sessionID)
+    url = get_thumbnail_url(slideRef, width, height, sessionID)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
-
 
 def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
     """
@@ -881,13 +880,14 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
         "cache": str(_pma_usecachewhenretrievingtiles).lower()
     }
 
+    if pma._pma_debug == True:
+        print(url)
+
     r = requests.get(url, params=params)
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
-
-
 
 def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0):
     """
@@ -922,6 +922,9 @@ def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, session
         "rotation": float(rotation),
     }
 
+    if pma._pma_debug == True:
+        print(url)
+
     r = requests.get(url, params=params)
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
@@ -936,7 +939,8 @@ def get_submitted_forms(slideRef, sessionID=None):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
     all_forms = get_available_forms(slideRef, sessionID)
-    print(url)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -962,7 +966,8 @@ def get_submitted_form_data(slideRef, sessionID=None):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
-    print(url)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -991,6 +996,9 @@ def get_available_forms(slideRef=None, sessionID=None):
     else:
         url = _pma_api_url(sessionID) + "GetForms?sessionID=" + pma._pma_q(sessionID)
 
+    if pma._pma_debug == True:
+        print(url)
+
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -1014,6 +1022,8 @@ def prepare_form_dictionary(formID, sessionID=None):
         return None
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
         json = r.json()
@@ -1051,6 +1061,8 @@ def get_annotations(slideRef, sessionID=None):
         slideRef = slideRef[1:]
     dir = os.path.split(slideRef)[0]
     url = _pma_api_url(sessionID) + "GetAnnotations?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+    if pma._pma_debug == True:
+        print(url)
 
     r = requests.get(url)
     if ((not (r.text is None)) and (len(r.text) > 0)):
@@ -1164,6 +1176,9 @@ def get_files_for_slide(slideRef, sessionID=None):
     else:
         url = _pma_api_url(sessionID) + "getfilenames?sessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
+    if pma._pma_debug == True:
+        print(url)
+
     r = requests.get(url)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -1244,6 +1259,9 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
     files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
     sessionID = _pma_session_id(target_pma_core_sessionID)
     url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
+
+    if pma._pma_debug == True:
+        print(url)
 
     mainDirectory = ''
     for i, f in enumerate(files):
