@@ -830,10 +830,10 @@ def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = (_pma_url(sessionID) + "thumbnail" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
-	if not (width is None):
-		url = url + "&w=" + str(width)
-	if not (height is None):
-		url = url + "&h=" + str(height)
+    if not (width is None):
+        url = url + "&w=" + str(width)
+    if not (height is None):
+        url = url + "&h=" + str(height)
     return url
 
 def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
