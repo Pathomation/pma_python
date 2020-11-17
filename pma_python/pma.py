@@ -2,12 +2,9 @@ from urllib.parse import quote
 from os.path import join
 import os
 import requests
+from pma_python import version
 
-def read(file_name):
-    with open(os.path.join(os.path.dirname(__file__), file_name)) as f:
-        return f.read()
-
-__version__ = read("version.txt")
+__version__ = version.__version__
 
 _pma_url_content = {}
 _pma_debug = False

@@ -1,3 +1,4 @@
+from .version import *
 from .pma import *
 from .core import *
 from .core_admin import *
