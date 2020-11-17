@@ -23,3 +23,4 @@ setup(name='pma_python',
       install_requires=['pillow', 'requests', 'requests_toolbelt'],
       python_requires='>=3',  # assume this only works in Python 3
       zip_safe=False)
+
