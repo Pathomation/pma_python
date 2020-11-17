@@ -30,7 +30,7 @@ setup(name='pma_python',
       author_email='info@pathomation.com',
       license='http://free.pathomation.com/eula/',
       packages=['pma_python'],
-      data_files=[('', ['long_desc.txt']), ('', ['pma_python/version.txt'])],
+      data_files=[('', ['long_desc.txt'])],
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Programming Language :: Python :: 3'],
