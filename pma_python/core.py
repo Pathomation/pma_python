@@ -9,6 +9,7 @@ from urllib.request import urlopen
 from pma_python import pma
 
 import requests
+import io
 import shutil
 import re
 import pandas as pd
@@ -1325,8 +1326,6 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
             r = requests.post(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
         else:
             r = requests.put(uploadUrl, data=UploadChunksIterator(open(f["FullPath"], 'rb'), f["Path"], f["Length"], _callback), headers={'Content-Length': str(f["Length"])})
-
-            print(r.headers)
 
         if not r.status_code == 200:
             raise Exception("Error uploading file {0}: {1} \r\n{2}".format(f["Path"], uploadUrl, r.text))
