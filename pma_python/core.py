@@ -1237,6 +1237,11 @@ def _pma_upload_callback(monitor, filename):
         print("{0:.0%}".format(monitor.bytes_read / monitor.len))
         monitor.previous = v
 
+def _pma_upload_amazon_callback(bytes_read, total_size, previous, filename):
+    v = bytes_read / total_size
+    if not previous or v - previous > 0.05 or (v - previous > 0 and bytes_read == total_size):
+        print("{0:.0%}".format(bytes_read / total_size))
+        return v
 
 def upload(local_source_slide, target_folder, target_pma_core_sessionID, callback=None):
     """
@@ -1261,9 +1266,6 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
     files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
     sessionID = _pma_session_id(target_pma_core_sessionID)
     url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
-
-    if pma._pma_debug == True:
-        print(url)
 
     mainDirectory = ''
     for i, f in enumerate(files):
@@ -1307,9 +1309,12 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         _callback = None
         if callback is True:
             print("Uploading file: {0}".format(e.fields["file"][0]))
-            _callback = lambda x: _pma_upload_callback(monitor, e.fields["file"][0])
+            if not isAmazonUpload:
+                def _callback(x): return _pma_upload_callback(monitor, e.fields["file"][0])
+            else:
+                def _callback(bytes_read, total_size, previous): return _pma_upload_amazon_callback(bytes_read, total_size, previous, e.fields["file"][0])
         elif callable(callback):
-            _callback = lambda x: callback(x.bytes_read, x.len, e.fields["file"][0])
+            def _callback(x): return callback(x.bytes_read, x.len, x.previous, e.fields["file"][0])
 
         monitor = MultipartEncoderMonitor(e, _callback)
 
@@ -1319,10 +1324,41 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         if not isAmazonUpload:
             r = requests.post(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
         else:
-            r = requests.put(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
+            r = requests.put(uploadUrl, data=UploadChunksIterator(open(f["FullPath"], 'rb'), f["Path"], f["Length"], _callback), headers={'Content-Length': str(f["Length"])})
+
+            print(r.headers)
 
         if not r.status_code == 200:
-            raise Exception("Error uploading file {0}: {1}".format(f["Path"], r.json()["Message"]))
+            raise Exception("Error uploading file {0}: {1} \r\n{2}".format(f["Path"], uploadUrl, r.text))
+
+
+class UploadChunksIterator:
+    def __init__(self, file: io.BufferedReader, filename, total_size: int, callback, chunk_size: int = 16 * 1024):
+        self.file = file
+        self.filename = filename
+        self.chunk_size = chunk_size
+        self.total_size = total_size
+        self.callback = callback
+        self.bytes_read = 0
+        self.previous = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        data = self.file.read(self.chunk_size)
+
+        if not data:
+            raise StopIteration
+        self.bytes_read += self.chunk_size
+        if self.callback is not None:
+            v = self.callback(self.bytes_read, self.total_size, self.previous)
+            if v is not None:
+                self.previous = v
+        return data
+
+    def __len__(self):
+        return self.total_size
 
 
 def download(slideRef, save_directory=None, sessionID=None):
