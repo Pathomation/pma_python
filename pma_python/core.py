@@ -1239,7 +1239,7 @@ def _pma_upload_callback(monitor, filename):
         monitor.previous = v
 
 def _pma_upload_amazon_callback(bytes_read, total_size, previous, filename):
-    v = bytes_read / total_size
+    v = min(1, bytes_read / total_size)
     if not previous or v - previous > 0.05 or (v - previous > 0 and bytes_read == total_size):
         print("{0:.0%}".format(bytes_read / total_size))
         return v
@@ -1329,6 +1329,11 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
         if not r.status_code == 200:
             raise Exception("Error uploading file {0}: {1} \r\n{2}".format(f["Path"], uploadUrl, r.text))
+
+        uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/" 
+            + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID))
+        if not uploadFinalizeResponse.status_code == 200:
+            raise Exception(uploadFinalizeResponse.json()["Message"])
 
 
 class UploadChunksIterator:
