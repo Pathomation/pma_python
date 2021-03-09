@@ -238,22 +238,29 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
         else:
             return None
 
+    headers = {'Accept': 'application/json'}
     # purposefully DON'T use helper function _pma_api_url() here:
     # why? Because_pma_api_url() takes session information into account (which we don't have yet)
     url = pma._pma_join(pmacoreURL, "api/json/authenticate?caller=SDK.Python")
-    if (pmacoreUsername != ""):
-        url += "&username=" + pma._pma_q(pmacoreUsername)
-        if (pma._pma_debug is True):
-            print("Authenticating via", url + "&password=TOP_SECRET")
-    if (pmacorePassword != ""):
-        url += "&password=" + pma._pma_q(pmacorePassword)
 
     try:
-        headers = {'Accept': 'application/json'}
-        r = requests.get(url, headers=headers)
+        r = requests.post(url, headers=headers, json={"username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"})
+        if (r.status_code != 200):
+            raise Exception("not supported")
     except Exception as e:
-        print(e)
-        return None
+        # try the get request
+        if (pmacoreUsername != ""):
+            url += "&username=" + pma._pma_q(pmacoreUsername)
+            if (pma._pma_debug is True):
+                print("Authenticating via", url + "&password=TOP_SECRET")
+        if (pmacorePassword != ""):
+            url += "&password=" + pma._pma_q(pmacorePassword)
+
+        try:
+            r = requests.get(url, headers=headers)
+        except Exception as e:
+            print(e)
+            return None
 
     loginresult = r.json()
 
@@ -780,6 +787,7 @@ def get_barcode_url(slideRef, sessionID=None):
     url = (_pma_url(sessionID) + "barcode" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
     return url
 
+
 def get_barcode_image(slideRef, sessionID=None):
     """Get the barcode (alias for "label") image for a slide"""
     sessionID = _pma_session_id(sessionID)
@@ -790,6 +798,7 @@ def get_barcode_image(slideRef, sessionID=None):
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
+
 
 def get_barcode_text(slideRef, sessionID=None):
     """Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
@@ -812,9 +821,11 @@ def get_barcode_text(slideRef, sessionID=None):
         barcode = ""
     return barcode
 
+
 def get_label_url(slideRef, sessionID=None):
     """Get the URL that points to the label for a slide"""
     return get_barcode_url(slideRef, sessionID)
+
 
 def get_label_image(slideRef, sessionID=None):
     """Get the label image for a slide"""
@@ -827,6 +838,7 @@ def get_label_image(slideRef, sessionID=None):
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
+
 def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the thumbnail for a slide"""
     sessionID = _pma_session_id(sessionID)
@@ -838,6 +850,7 @@ def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     if not (height is None):
         url = url + "&h=" + str(height)
     return url
+
 
 def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     """Get the thumbnail image for a slide"""
@@ -852,6 +865,7 @@ def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
+
 
 def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
     """
@@ -891,6 +905,7 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
+
 
 def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0):
     """
@@ -1080,7 +1095,8 @@ def get_annotations(slideRef, sessionID=None):
         annotations = ""
     return annotations
 
-def export_annotations(slideRef, annotation_source_format = [pma_annotation_source_format_pathomation], annotation_target_format = pma_annotation_target_format_xml, sessionID=None):
+
+def export_annotations(slideRef, annotation_source_format=[pma_annotation_source_format_pathomation], annotation_target_format=pma_annotation_target_format_xml, sessionID=None):
     """
     Retrieve the annotations for slide slideRef
     """
@@ -1102,7 +1118,8 @@ def export_annotations(slideRef, annotation_source_format = [pma_annotation_sour
     else:
         raise ValueError("Unable to get annotations ("+str(r.status_code)+")")
     return None
-	
+
+
 def get_tiles(slideRef,
               fromX=0,
               fromY=0,
@@ -1238,11 +1255,13 @@ def _pma_upload_callback(monitor, filename):
         print("{0:.0%}".format(monitor.bytes_read / monitor.len))
         monitor.previous = v
 
+
 def _pma_upload_amazon_callback(bytes_read, total_size, previous, filename):
     v = min(1, bytes_read / total_size)
     if not previous or v - previous > 0.05 or (v - previous > 0 and bytes_read == total_size):
         print("{0:.0%}".format(bytes_read / total_size))
         return v
+
 
 def upload(local_source_slide, target_folder, target_pma_core_sessionID, callback=None):
     """
@@ -1330,8 +1349,8 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         if not r.status_code == 200:
             raise Exception("Error uploading file {0}: {1} \r\n{2}".format(f["Path"], uploadUrl, r.text))
 
-        uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/" 
-            + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID))
+        uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
+                                              + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID))
         if not uploadFinalizeResponse.status_code == 200:
             raise Exception(uploadFinalizeResponse.json()["Message"])
 
@@ -1388,14 +1407,14 @@ def download(slideRef, save_directory=None, sessionID=None):
 
     if save_directory and not os.path.exists(save_directory):
         raise ValueError("The output directory does not exist {}".format(save_directory))
-    
+
     sessionID = _pma_session_id(sessionID)
     files = get_files_for_slide(slideRef, sessionID)
     if not files:
         raise ValueError("Slide not found")
-    
+
     mainDirectory = slideRef.rsplit('/', 1)[0]
-   
+
     for f in files:
         relativePath = f.replace(mainDirectory, '').strip("\\").strip("/")
         pmaCoreDownloadUrl = _pma_url(sessionID) + "transfer/Download/"
