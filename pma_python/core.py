@@ -1259,7 +1259,7 @@ def _pma_upload_callback(monitor, filename):
 def _pma_upload_amazon_callback(bytes_read, total_size, previous, filename):
     v = min(1, bytes_read / total_size)
     if not previous or v - previous > 0.05 or (v - previous > 0 and bytes_read == total_size):
-        print("{0:.0%}".format(bytes_read / total_size))
+        print("{0:.0%}".format(v))
         return v
 
 
@@ -1352,7 +1352,8 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
                                               + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID))
         if not uploadFinalizeResponse.status_code == 200:
-            raise Exception(uploadFinalizeResponse.json()["Message"])
+            print(uploadFinalizeResponse.json())
+            raise Exception(uploadFinalizeResponse.json()["Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
 
 
 class UploadChunksIterator:
@@ -1447,3 +1448,67 @@ def download(slideRef, save_directory=None, sessionID=None):
                             if pma._pma_debug == True:
                                 print("{0:.0%}".format(progress))
                             prev = progress
+
+
+def add_annotation(slideRef, classification, notes, geometry, color = "#000000", layerID = 0, sessionID = None):
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support adding annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support adding annotations.")
+
+    url = _pma_api_url(sessionID) + "AddAnnotation"
+
+    data = {
+        "sessionID": sessionID,
+        "pathOrUid": slideRef,
+        "classification": classification,
+        "layerID": layerID,
+        "notes": notes,
+        "geometry": geometry,
+        "color": color
+    }
+    
+    if pma._pma_debug == True:
+        print("url =", url)
+
+    r = requests.post(url, json=data)
+    json = r.json()
+    return json
+
+def clear_all_annotations(slideRef, sessionID):
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support deleting annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support deleting annotations.")
+    
+    annotations = get_annotations(slideRef, sessionID)
+    if annotations is None or annotations == "":
+        return True
+    
+    layerIds = list(set(a["LayerID"] for a in annotations))
+
+    for lId in layerIds:
+        clear_annotations(slideRef, lId, sessionID)
+    
+    return True
+
+def clear_annotations(slideRef, layerID, sessionID):
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support deleting annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support deleting annotations.")
+
+    url = _pma_api_url(sessionID) + "DeleteAnnotations"
+    data = { "sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID }
+
+    r = requests.post(url, json=data)
+    if (r.status_code != 200):
+        raise Exception("clear_annotation on  " + slideRef + " resulted in error")
+
+    return True
