@@ -1174,11 +1174,14 @@ def show_slide(slideRef, sessionID=None):
         if url is None:
             raise Exception("Unable to determine the PMA.core instance belonging to " + str(sessionID))
         else:
-            url += ("viewer/index.htm" + "?sessionID=" + pma._pma_q(sessionID) + "^&pathOrUid=" + pma._pma_q(slideRef)
-                    )  # note the ^& to escape a regular &
+            poUid = "&pathOrUid=" if os.name == "posix" else "^&pathOrUid="
+            url += "viewer/index.htm" + "?sessionID=" + pma._pma_q(sessionID) + poUid + pma._pma_q(slideRef)
 
     if (pma._pma_debug == True):
         print(url)
+    if (os.name == "posix"):
+        url = f"\"{url}\""
+    print(os_cmd + url)
     os.system(os_cmd + url)
 
 
