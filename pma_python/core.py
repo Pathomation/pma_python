@@ -596,7 +596,7 @@ def get_tile_size(sessionID=None):
         info = get_slide_info(slides[0], sessionID)
     else:
         info = choice(list(_pma_slideinfos[sessionID].values()))
-
+    
     return (int(info["TileSize"]), int(info["TileSize"]))
 
 
@@ -615,10 +615,13 @@ def get_slide_info(slideRef, sessionID=None):
         if pma._pma_debug == True:
             print(url)
         r = requests.get(url)
+        if r.status_code != 200:
+            raise Exception("ImageInfo to " + slideRef + " error")
+            
         json = r.json()
         global _pma_amount_of_data_downloaded
         _pma_amount_of_data_downloaded[sessionID] += len(json)
-        if ("Code" in json):
+        if ("Code" in json or 'Message' in json):
             raise Exception("ImageInfo to " + slideRef + " resulted in: " + json["Message"])
         elif ("d" in json):
             _pma_slideinfos[sessionID][slideRef] = json["d"]
