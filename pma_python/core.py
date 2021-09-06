@@ -1181,7 +1181,6 @@ def show_slide(slideRef, sessionID=None):
         print(url)
     if (os.name == "posix"):
         url = f"\"{url}\""
-    print(os_cmd + url)
     os.system(os_cmd + url)
 
 
