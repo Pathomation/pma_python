@@ -909,8 +909,9 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
-
-def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0):
+def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0, 
+    contrast=None, brightness=None, postGamma=None, dpi=300, flipVertical=False,flipHorizontal=False,annotationsLayerType=None, drawFilename=0,
+    downloadInsteadOfDisplay=False,drawScaleBar=False, gamma=[], channelClipping=[]):
     """
     Gets a region of the slide at the specified scale 
     Format can be 'jpg' or 'png'
@@ -941,6 +942,18 @@ def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, session
         "format": format,
         "quality": quality,
         "rotation": float(rotation),
+        "contrast": contrast,
+        "brightness": brightness,
+        "postGamma": postGamma,
+        "dpi": dpi,
+        "flipVertical": flipVertical,
+        "flipHorizontal": flipHorizontal,
+        "annotationsLayerType": annotationsLayerType,
+        "drawFilename": drawFilename,
+        "downloadInsteadOfDisplay": downloadInsteadOfDisplay,
+        "drawScaleBar": drawScaleBar,
+        "gamma": ",".join([str(s) for s in gamma]),
+        "channelClipping": ",".join([str(s) for s in channelClipping])
     }
 
     if pma._pma_debug == True:
