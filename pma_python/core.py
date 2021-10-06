@@ -1530,3 +1530,20 @@ def clear_annotations(slideRef, layerID, sessionID):
         raise Exception("clear_annotation on  " + slideRef + " resulted in error")
 
     return True
+
+def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support annotations.")
+
+    url = _pma_api_url(sessionID) + "GetAnnotationSurfaceArea"
+    data = { "sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID, "annotationID": annotationID }
+
+    r = requests.get(url, params=data)
+    if (r.status_code != 200):
+        raise Exception("get_annotation_surface_area on  " + slideRef + " resulted in error")
+
+    return r.text
