@@ -241,10 +241,14 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     headers = {'Accept': 'application/json'}
     # purposefully DON'T use helper function _pma_api_url() here:
     # why? Because_pma_api_url() takes session information into account (which we don't have yet)
-    url = pma._pma_join(pmacoreURL, "api/json/authenticate?caller=SDK.Python")
+    post_url = pma._pma_join(pmacoreURL, "api/json/authenticate?caller=SDK.Python")
+    get_url = post_url + "&username=" + pma._pma_q(pmacoreUsername) + "&password=" + pma._pma_q(pmacorePassword)
+
+    if pma._pma_debug == True:
+        print(get_url)
 
     try:
-        r = requests.post(url, headers=headers, json={"username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"})
+        r = requests.post(post_url, headers=headers, json={"username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"})
         if (r.status_code != 200):
             raise Exception("not supported")
     except Exception as e:
@@ -596,7 +600,7 @@ def get_tile_size(sessionID=None):
         info = get_slide_info(slides[0], sessionID)
     else:
         info = choice(list(_pma_slideinfos[sessionID].values()))
-    
+
     return (int(info["TileSize"]), int(info["TileSize"]))
 
 
@@ -617,7 +621,7 @@ def get_slide_info(slideRef, sessionID=None):
         r = requests.get(url)
         if r.status_code != 200:
             raise Exception("ImageInfo to " + slideRef + " error")
-            
+
         json = r.json()
         global _pma_amount_of_data_downloaded
         _pma_amount_of_data_downloaded[sessionID] += len(json)
@@ -909,9 +913,10 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
-def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0, 
-    contrast=None, brightness=None, postGamma=None, dpi=300, flipVertical=False,flipHorizontal=False,annotationsLayerType=None, drawFilename=0,
-    downloadInsteadOfDisplay=False,drawScaleBar=False, gamma=[], channelClipping=[]):
+
+def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0,
+               contrast=None, brightness=None, postGamma=None, dpi=300, flipVertical=False, flipHorizontal=False, annotationsLayerType=None, drawFilename=0,
+               downloadInsteadOfDisplay=False, drawScaleBar=False, gamma=[], channelClipping=[]):
     """
     Gets a region of the slide at the specified scale 
     Format can be 'jpg' or 'png'
@@ -1468,7 +1473,7 @@ def download(slideRef, save_directory=None, sessionID=None):
                             prev = progress
 
 
-def add_annotation(slideRef, classification, notes, geometry, color = "#000000", layerID = 0, sessionID = None):
+def add_annotation(slideRef, classification, notes, geometry, color="#000000", layerID=0, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
@@ -1487,13 +1492,14 @@ def add_annotation(slideRef, classification, notes, geometry, color = "#000000",
         "geometry": geometry,
         "color": color
     }
-    
+
     if pma._pma_debug == True:
         print("url =", url)
 
     r = requests.post(url, json=data)
     json = r.json()
     return json
+
 
 def clear_all_annotations(slideRef, sessionID):
     sessionID = _pma_session_id(sessionID)
@@ -1502,17 +1508,18 @@ def clear_all_annotations(slideRef, sessionID):
             raise ValueError("PMA.core.lite found running, but doesn't support deleting annotations.")
         else:
             raise ValueError("PMA.core.lite not found, and besides; it doesn't support deleting annotations.")
-    
+
     annotations = get_annotations(slideRef, sessionID)
     if annotations is None or annotations == "":
         return True
-    
+
     layerIds = list(set(a["LayerID"] for a in annotations))
 
     for lId in layerIds:
         clear_annotations(slideRef, lId, sessionID)
-    
+
     return True
+
 
 def clear_annotations(slideRef, layerID, sessionID):
     sessionID = _pma_session_id(sessionID)
@@ -1523,13 +1530,14 @@ def clear_annotations(slideRef, layerID, sessionID):
             raise ValueError("PMA.core.lite not found, and besides; it doesn't support deleting annotations.")
 
     url = _pma_api_url(sessionID) + "DeleteAnnotations"
-    data = { "sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID }
+    data = {"sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID}
 
     r = requests.post(url, json=data)
     if (r.status_code != 200):
         raise Exception("clear_annotation on  " + slideRef + " resulted in error")
 
     return True
+
 
 def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
     sessionID = _pma_session_id(sessionID)
@@ -1540,7 +1548,7 @@ def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
             raise ValueError("PMA.core.lite not found, and besides; it doesn't support annotations.")
 
     url = _pma_api_url(sessionID) + "GetAnnotationSurfaceArea"
-    data = { "sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID, "annotationID": annotationID }
+    data = {"sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID, "annotationID": annotationID}
 
     r = requests.get(url, params=data)
     if (r.status_code != 200):
