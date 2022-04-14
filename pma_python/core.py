@@ -183,6 +183,36 @@ def get_version_info(pmacoreURL=_pma_pmacoreliteURL):
     else:
         version = json
 
+    if version.startswith("3."):
+        revision = get_build_revision(pmacoreURL)
+        if revision is not None:
+            version += "." + revision
+
+    return version
+
+def get_build_revision(pmacoreURL=_pma_pmacoreliteURL):
+    """
+    Get build revistion from PMA.core instance running at pmacoreURL.
+    Return None if PMA.core not found running at pmacoreURL endpoint
+    """
+    url = pma._pma_join(pmacoreURL, "api/json/GetBuildRevision")
+    if pma._pma_debug == True:
+        print(url)
+
+    try:
+        r = requests.get(url)
+    except Exception:
+        return None
+
+    json = r.json()
+    version = None
+    if ("Code" in json):
+        raise Exception("get build revision resulted in: " + json["Message"])
+    elif ("d" in json):
+        version = json["d"]
+    else:
+        version = json
+
     return version
 
 
