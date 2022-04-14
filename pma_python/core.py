@@ -208,8 +208,6 @@ def get_build_revision(pmacoreURL=_pma_pmacoreliteURL):
     version = None
     if ("Code" in json):
         raise Exception("get build revision resulted in: " + json["Message"])
-    elif ("d" in json):
-        version = json["d"]
     else:
         version = json
 
