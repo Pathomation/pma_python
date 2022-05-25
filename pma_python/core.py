@@ -560,6 +560,8 @@ def get_uid(slideRef, sessionID=None):
             )
 
     url = _pma_api_url(sessionID) + "GetUID?sessionID=" + pma._pma_q(sessionID) + "&path=" + pma._pma_q(slideRef)
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -867,7 +869,10 @@ def get_label_image(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    r = requests.get(get_label_url(slideRef, sessionID))
+    url = get_label_url(slideRef, sessionID)
+    if pma._pma_debug == True:
+        print(url)
+    r = requests.get(url)
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
@@ -1579,7 +1584,28 @@ def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
     data = {"sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID, "annotationID": annotationID}
 
     r = requests.get(url, params=data)
+    if pma._pma_debug == True:
+        print(r.url)
     if (r.status_code != 200):
         raise Exception("get_annotation_surface_area on  " + slideRef + " resulted in error")
+
+    return r.text
+
+def get_annotation_distance(slideRef, layerID, annotationID, sessionID):
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support annotations.")
+
+    url = _pma_api_url(sessionID) + "GetAnnotationDistance"
+    data = {"sessionID": sessionID, "pathOrUid": slideRef, "layerID": layerID, "annotationID": annotationID}
+
+    r = requests.get(url, params=data)
+    if pma._pma_debug == True:
+        print(r.url)
+    if (r.status_code != 200):
+        raise Exception("get_annotation_distance on  " + slideRef + " resulted in error")
 
     return r.text
