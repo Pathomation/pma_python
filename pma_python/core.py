@@ -190,6 +190,7 @@ def get_version_info(pmacoreURL=_pma_pmacoreliteURL):
 
     return version
 
+
 def get_build_revision(pmacoreURL=_pma_pmacoreliteURL):
     """
     Get build revistion from PMA.core instance running at pmacoreURL.
@@ -1534,7 +1535,7 @@ def add_annotation(slideRef, classification, notes, geometry, color="#000000", l
     return json
 
 
-def clear_all_annotations(slideRef, sessionID):
+def clear_all_annotations(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
@@ -1554,7 +1555,7 @@ def clear_all_annotations(slideRef, sessionID):
     return True
 
 
-def clear_annotations(slideRef, layerID, sessionID):
+def clear_annotations(slideRef, layerID, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
@@ -1572,7 +1573,7 @@ def clear_annotations(slideRef, layerID, sessionID):
     return True
 
 
-def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
+def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
@@ -1591,7 +1592,8 @@ def get_annotation_surface_area(slideRef, layerID, annotationID, sessionID):
 
     return r.text
 
-def get_annotation_distance(slideRef, layerID, annotationID, sessionID):
+
+def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
