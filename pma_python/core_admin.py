@@ -258,6 +258,19 @@ def delete_directory(admSessionID, path):
         return False
     return True
 
+def delete_slide(admSessionID, slideRef):
+    url = _pma_admin_url(admSessionID) + "DeleteSlide"
+    payload = {
+        "sessionID": admSessionID,
+        "path": slideRef,
+    }
+    result = _pma_http_post(url, payload)
+    if "Code" in result:
+        if pma._pma_debug is True:
+            print(result)
+        return False
+    return True
+
 def reverse_uid(admSessionID, slideRefUid):
     """
     lookup the reverse path of a UID for a specific slide
