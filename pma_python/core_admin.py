@@ -246,6 +246,9 @@ def rename_directory(admSessionID, originalPath, newName):
 
 
 def delete_directory(admSessionID, path):
+    """
+    Deletes a directory from the PMA.core storage 
+    """
     url = _pma_admin_url(admSessionID) + "DeleteDirectory"
     payload = {
         "sessionID": admSessionID,
@@ -259,6 +262,9 @@ def delete_directory(admSessionID, path):
     return True
 
 def delete_slide(admSessionID, slideRef):
+    """
+    Deletes a slide from the PMA.core storage 
+    """
     url = _pma_admin_url(admSessionID) + "DeleteSlide"
     payload = {
         "sessionID": admSessionID,
