@@ -52,6 +52,10 @@ def set_debug_flag(flag):
 
 
 def _pma_session_id(sessionID=None):
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
     if (sessionID is None):
         # if the sessionID isn't specified, maybe we can still recover it somehow
         return _pma_first_session_id()
@@ -61,6 +65,10 @@ def _pma_session_id(sessionID=None):
 
 
 def _pma_first_session_id():
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
     # do we have any stored sessions from earlier login events?
     global _pma_sessions
     global _pma_slideinfos
@@ -85,6 +93,10 @@ def _pma_first_session_id():
 
 
 def _pma_url(sessionID=None):
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
     sessionID = _pma_session_id(sessionID)
     if sessionID is None:
         # sort of a hopeless situation; there is no URL to refer to
@@ -103,13 +115,18 @@ def _pma_url(sessionID=None):
 
 
 def _pma_is_lite(pmacoreURL=_pma_pmacoreliteURL):
-    """checks to see if PMA.core.lite (server component of PMA.start) is running at a given endpoint.
-    if pmacoreURL is omitted, default check is to see if PMA.start is effectively running at localhost
-    (defined by _pma_pmacoreliteURL). Note that PMA.start may not be running, while it is actually installed.
-    This method doesn't detect whether PMA.start is installed; merely whether it's running!
-    if pmacoreURL is specified, then the method checks if there's an instance of PMA.start (results in True),
-    PMA.core (results in False) or nothing (at least not a Pathomation software platform component) at all
-    (results in None)"""
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
+    # This method checks to see if PMA.core.lite (server component of PMA.start) is running at a given endpoint.
+    # if pmacoreURL is omitted, default check is to see if PMA.start is effectively running at localhost
+    # (defined by _pma_pmacoreliteURL). Note that PMA.start may not be running, while it is actually installed.
+    # This method doesn't detect whether PMA.start is installed; merely whether it's running!
+    # if pmacoreURL is specified, then the method checks if there's an instance of PMA.start (results in True),
+    # PMA.core (results in False) or nothing (at least not a Pathomation software platform component) at all
+    # (results in None)
+	
     url = pma._pma_join(pmacoreURL, "api/json/IsLite")
     try:
         r = requests.get(url)
@@ -121,6 +138,10 @@ def _pma_is_lite(pmacoreURL=_pma_pmacoreliteURL):
 
 
 def _pma_api_url(sessionID=None):
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
     # let's get the base URL first for the specified session
     url = _pma_url(sessionID)
     if url is None:
@@ -131,6 +152,10 @@ def _pma_api_url(sessionID=None):
 
 
 def _pma_query_url(sessionID=None):
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
+
     # let's get the base URL first for the specified session
     url = _pma_url(sessionID)
     if url is None:
@@ -216,6 +241,10 @@ def get_build_revision(pmacoreURL=_pma_pmacoreliteURL):
 
 
 def get_api_version(pmacoreURL=_pma_pmacoreliteURL):
+    """
+    Retrieves the API version exposed by the underlying PMA.core (no authentication or sessionID needed for this)
+    """
+
     url = pma._pma_join(pmacoreURL, "api/json/GetAPIVersion")
     if pma._pma_debug == True:
         print(url)
@@ -242,6 +271,9 @@ def get_api_version(pmacoreURL=_pma_pmacoreliteURL):
 
 
 def get_api_verion_string(pmacoreURL=_pma_pmacoreliteURL):
+    """
+    Returns the API version as a formatted string, rather than a list
+    """
     v = get_api_version(pmacoreURL)
     return ".".join([str(x) for x in v])
 
@@ -344,6 +376,9 @@ def get_root_directories(sessionID=None):
 
 
 def _pma_merge_dict_values(dicts):
+    """
+    Internal methods prefixed with _pma_ are not supposed to be invoked by consumers directly
+    """
     res = []
     for (_, lst) in dicts.items():
         for el in lst:
@@ -421,6 +456,11 @@ def get_directories(startDir, sessionID=None, recursive=False):
 
 
 def get_first_non_empty_directory(startDir=None, sessionID=None):
+    """
+    Traversing a folder hierarchy for find any non-empty data (sample slides) is a stupid repetitive task
+	This method makes it easy to do this.
+	When you need any sample slides on any PMA.core instance, use this method to find any folder that has some data in it
+    """
     sessionID = _pma_session_id(sessionID)
 
     if ((startDir is None) or (startDir == "")):
@@ -460,6 +500,17 @@ def get_first_non_empty_directory(startDir=None, sessionID=None):
 def get_slides(startDir, sessionID=None, recursive=False):
     """
     Return an array of slides available to sessionID in the startDir directory
+    The recursive argument can be either of boolean or of integer type.
+	
+    :param recursive :
+    If recursive is False (boolean) or 0 (integer), no recursion takes place
+    If recursive is True (boolean), then the folder structure will be traversed recursively down to the deepest level
+    But setting recursive to True is actually not recommended, as you may not know how far down a folder structure goes (or just be plain wrong assuming it's shallow).
+    A better approach therefore is to set recursive to an integer value that indicates how many levels deep the parsing should go at most. 
+    Setting recursive to 1 means that only the subfolders of startDir will be included;
+    Setting recursive to 2 means that the subfolders AND the subfolders of these subfolders will be included.
+    Setting recursive to 3 means that the subfolders AND the subfolders of these subfolders AND the subfolders of the subfolders of these subfolders will be included.
+    Etcetera
     """
     sessionID = _pma_session_id(sessionID)
     if (startDir.startswith("/")):
@@ -618,11 +669,19 @@ def who_am_i(sessionID=None):
 
 
 def sessions():
+    """
+    Return an overview of all the sessions that PMA.python currently holds in memory
+    """
+
     global _pma_sessions
     return _pma_sessions
 
 
 def get_tile_size(sessionID=None):
+    """
+    Retrieve the standard tile size set by the PMA.core instance linked to the sessionID
+    """
+
     sessionID = _pma_session_id(sessionID)
     global _pma_slideinfos
     if (len(_pma_slideinfos[sessionID]) < 1):
@@ -781,6 +840,7 @@ def get_number_of_layers(slideRef, sessionID=None):
 
 
 def get_number_of_z_stack_layers(slideRef, sessionID=None):
+    """Number of z-stack layers for a slide"""
     return get_number_of_layers(slideRef, sessionID)
 
 
@@ -788,22 +848,18 @@ def is_fluorescent(slideRef, sessionID=None):
     """Determine whether a slide is a fluorescent image or not"""
     return get_number_of_channels(slideRef, sessionID) > 1
 
-
 def is_multi_layer(slideRef, sessionID=None):
     """Determine whether a slide contains multiple (stacked) layers or not"""
     return get_number_of_layers(slideRef, sessionID) > 1
-
 
 def get_last_modified_date(slideRef, sessionID=None):
     info = get_slide_info(slideRef, sessionID)
     lms = info["LastModified"].strip("/").replace("Date(", "").replace(")", "")
     return datetime.datetime.fromtimestamp(int(lms) / 1000.0)
 
-
 def is_z_stack(slideRef, sessionID=None):
     """Determine whether a slide is a z-stack or not"""
     return is_multi_layer(slideRef, sessionID)
-
 
 def get_magnification(slideRef, zoomlevel=None, exact=False, sessionID=None):
     """Get the magnification represented at a certain zoomlevel"""
@@ -816,7 +872,6 @@ def get_magnification(slideRef, zoomlevel=None, exact=False, sessionID=None):
     else:
         return 0
 
-
 def get_barcode_url(slideRef, sessionID=None):
     """Get the URL that points to the barcode (alias for "label") for a slide"""
     sessionID = _pma_session_id(sessionID)
@@ -824,7 +879,6 @@ def get_barcode_url(slideRef, sessionID=None):
         slideRef = slideRef[1:]
     url = (_pma_url(sessionID) + "barcode" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
     return url
-
 
 def get_barcode_image(slideRef, sessionID=None):
     """Get the barcode (alias for "label") image for a slide"""
@@ -836,7 +890,6 @@ def get_barcode_image(slideRef, sessionID=None):
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
-
 
 def get_barcode_text(slideRef, sessionID=None):
     """Get the text encoded by the barcode (if there IS a barcode on the slide to begin with)"""
@@ -859,11 +912,9 @@ def get_barcode_text(slideRef, sessionID=None):
         barcode = ""
     return barcode
 
-
 def get_label_url(slideRef, sessionID=None):
     """Get the URL that points to the label for a slide"""
     return get_barcode_url(slideRef, sessionID)
-
 
 def get_label_image(slideRef, sessionID=None):
     """Get the label image for a slide"""
@@ -879,7 +930,6 @@ def get_label_image(slideRef, sessionID=None):
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
-
 def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the thumbnail for a slide"""
     sessionID = _pma_session_id(sessionID)
@@ -891,7 +941,6 @@ def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     if not (height is None):
         url = url + "&h=" + str(height)
     return url
-
 
 def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     """Get the thumbnail image for a slide"""
@@ -906,7 +955,6 @@ def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
-
 
 def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
     """
@@ -1508,6 +1556,26 @@ def download(slideRef, save_directory=None, sessionID=None):
 
 
 def add_annotation(slideRef, classification, notes, geometry, color="#000000", layerID=0, sessionID=None):
+    """Adds an anotation to a slide with the specified parameters
+
+    :param slideRef: The slide path to add annotation to
+    :type slideRef: str
+    :param classification: A string representing the class of this annotation (tumor, necrosis etc)
+    :type classification: str
+    :param notes: A string for free text notes to be associated with this annotation
+    :type notes: str
+    :param geometry: A Well-Known Text (WKT) representation of the geometry of this annotation
+    :type geometry: str
+    :param color: An HTML color, defaults to "#000000"
+    :type color: str, optional
+    :param layerID: The layer id to attach this annotation to, defaults to 0
+    :type layerID: int, optional
+    :param sessionID: The PMA.core session id, defaults to None for autodetection
+    :type sessionID: str, optional
+    :raises ValueError: If the server response is not in a known format
+    :return: An integer representing the annotation id
+    :rtype: int
+    """
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
