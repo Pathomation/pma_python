@@ -1413,13 +1413,14 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
     uploadHeaderResponse = requests.post(url, json=data)
     if not uploadHeaderResponse.status_code == 200:
+        print(uploadHeaderResponse.json())
         raise Exception(uploadHeaderResponse.json()["Message"])
 
     uploadHeader = uploadHeaderResponse.json()
 
     pmaCoreUploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(
         uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID) + "&path={0}"
-
+    
     isAmazonUpload = True
     if not uploadHeader['Urls']:
         isAmazonUpload = False
@@ -1449,14 +1450,18 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         if not isAmazonUpload:
             r = requests.post(uploadUrl, data=monitor, headers={'Content-Type': monitor.content_type})
         else:
-            r = requests.put(uploadUrl, data=UploadChunksIterator(open(f["FullPath"], 'rb'), f["Path"], f["Length"], _callback), headers={'Content-Length': str(f["Length"])})
+            headers={'Content-Length': str(f["Length"])}
+            if uploadHeader['UploadType'] == 2:
+                headers={'Content-Length': str(f["Length"]), 'x-ms-blob-type': 'BlockBlob' }
 
-        if not r.status_code == 200:
-            raise Exception("Error uploading file {0}: {1} \r\n{2}".format(f["Path"], uploadUrl, r.text))
+            r = requests.put(uploadUrl, data=UploadChunksIterator(open(f["FullPath"], 'rb'), f["Path"], f["Length"], _callback), headers=headers)
+
+        if r.status_code < 200 or r.status_code >= 300:
+            raise Exception("Error uploading file {0}: {1} \r\n{2}: {3}".format(f["Path"], uploadUrl, r.status_code, r.text))
 
         uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
                                               + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID))
-        if not uploadFinalizeResponse.status_code == 200:
+        if uploadFinalizeResponse.status_code < 200 or uploadFinalizeResponse.status_code >= 300:
             print(uploadFinalizeResponse.json())
             raise Exception(uploadFinalizeResponse.json()["Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
 
