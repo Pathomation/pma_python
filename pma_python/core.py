@@ -1684,4 +1684,3 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None):
         raise Exception("get_annotation_distance on  " + slideRef + " resulted in error")
 
     return r.text
-
