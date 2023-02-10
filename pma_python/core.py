@@ -1560,7 +1560,7 @@ def download(slideRef, save_directory=None, sessionID=None):
                             prev = progress
 
 
-def add_annotation(slideRef, classification, notes, geometry, color="#000000", layerID=0, sessionID=None):
+def add_annotation(slideRef, classification, notes, geometry, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
     """Adds an anotation to a slide with the specified parameters
 
     :param slideRef: The slide path to add annotation to
@@ -1577,6 +1577,12 @@ def add_annotation(slideRef, classification, notes, geometry, color="#000000", l
     :type layerID: int, optional
     :param sessionID: The PMA.core session id, defaults to None for autodetection
     :type sessionID: str, optional
+    :param fillColor: The fill color for the annotation if any
+    :type fillColor: str, optional
+    :param opacity: The fill opacity for the annotation 
+    :type opacity: number, optional
+    :param outlineOpacity: The outline opacity for the annotation if any
+    :type outlineOpacity: number, optional
     :raises ValueError: If the server response is not in a known format
     :return: An integer representing the annotation id
     :rtype: int
