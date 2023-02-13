@@ -956,6 +956,32 @@ def get_thumbnail_image(slideRef, width=None, height=None, sessionID=None):
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
+def get_macro_url(slideRef, width=None, height=None, sessionID=None):
+    """Get the URL that points to the macro image (thumbnail + label) for a slide"""
+    sessionID = _pma_session_id(sessionID)
+    if (slideRef.startswith("/")):
+        slideRef = slideRef[1:]
+    url = (_pma_url(sessionID) + "thumbnail" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
+    if not (width is None):
+        url = url + "&w=" + str(width)
+    if not (height is None):
+        url = url + "&h=" + str(height)
+    return url
+
+def get_macro_image(slideRef, width=None, height=None, sessionID=None):
+    """Get the macro image for a slide"""
+    sessionID = _pma_session_id(sessionID)
+    if (slideRef.startswith("/")):
+        slideRef = slideRef[1:]
+    url = get_macro_url(slideRef, width, height, sessionID)
+    if pma._pma_debug == True:
+        print(url)
+    r = requests.get(url)
+    img = Image.open(BytesIO(r.content))
+    global _pma_amount_of_data_downloaded
+    _pma_amount_of_data_downloaded[sessionID] += len(r.content)
+    return img
+
 def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
     """
     Get a single tile at position (x, y)
