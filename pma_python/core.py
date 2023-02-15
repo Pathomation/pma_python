@@ -892,6 +892,8 @@ def get_barcode_image(slideRef, width=None, height=None, sessionID=None):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     r = requests.get(get_barcode_url(slideRef, width, height, sessionID))
+    if pma._pma_debug == True:
+        print(url)
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
@@ -918,23 +920,13 @@ def get_barcode_text(slideRef, sessionID=None):
         barcode = ""
     return barcode
 
-def get_label_url(slideRef, sessionID=None):
+def get_label_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the label for a slide"""
-    return get_barcode_url(slideRef, sessionID)
+    return get_barcode_url(slideRef, width, height, sessionID)
 
-def get_label_image(slideRef, sessionID=None):
+def get_label_image(slideRef, width=None, height=None, sessionID=None):
     """Get the label image for a slide"""
-    sessionID = _pma_session_id(sessionID)
-    if (slideRef.startswith("/")):
-        slideRef = slideRef[1:]
-    url = get_label_url(slideRef, sessionID)
-    if pma._pma_debug == True:
-        print(url)
-    r = requests.get(url)
-    img = Image.open(BytesIO(r.content))
-    global _pma_amount_of_data_downloaded
-    _pma_amount_of_data_downloaded[sessionID] += len(r.content)
-    return img
+    return get_barcode_image(slideRef, width, height, sessionID)
 
 def get_thumbnail_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the thumbnail for a slide"""
@@ -972,8 +964,6 @@ def get_macro_url(slideRef, width=None, height=None, sessionID=None):
         url = url + "&w=" + str(width)
     if not (height is None):
         url = url + "&h=" + str(height)
-    if pma._pma_debug == True:
-        print(url)
     return url
 
 def get_macro_image(slideRef, width=None, height=None, sessionID=None):
