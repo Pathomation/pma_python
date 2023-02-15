@@ -967,11 +967,13 @@ def get_macro_url(slideRef, width=None, height=None, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    url = (_pma_url(sessionID) + "thumbnail" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
+    url = (_pma_url(sessionID) + "macro" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
     if not (width is None):
         url = url + "&w=" + str(width)
     if not (height is None):
         url = url + "&h=" + str(height)
+    if pma._pma_debug == True:
+        print(url)
     return url
 
 def get_macro_image(slideRef, width=None, height=None, sessionID=None):
