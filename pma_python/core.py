@@ -1,5 +1,3 @@
-import os
-import datetime
 from math import ceil
 from PIL import Image
 from random import choice
@@ -8,11 +6,15 @@ from urllib.parse import quote
 from urllib.request import urlopen
 from pma_python import pma
 
+# general purpose packages
+import os
+import datetime
 import requests
 import io
 import shutil
 import re
 import pandas as pd
+
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
 __version__ = pma.__version__
@@ -872,20 +874,24 @@ def get_magnification(slideRef, zoomlevel=None, exact=False, sessionID=None):
     else:
         return 0
 
-def get_barcode_url(slideRef, sessionID=None):
+def get_barcode_url(slideRef, width=None, height=None, sessionID=None):
     """Get the URL that points to the barcode (alias for "label") for a slide"""
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = (_pma_url(sessionID) + "barcode" + "?SessionID=" + pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef))
+    if not (width is None):
+        url = url + "&w=" + str(width)
+    if not (height is None):
+        url = url + "&h=" + str(height)
     return url
 
-def get_barcode_image(slideRef, sessionID=None):
+def get_barcode_image(slideRef, width=None, height=None, sessionID=None):
     """Get the barcode (alias for "label") image for a slide"""
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    r = requests.get(get_barcode_url(slideRef, sessionID))
+    r = requests.get(get_barcode_url(slideRef, width, height, sessionID))
     img = Image.open(BytesIO(r.content))
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
