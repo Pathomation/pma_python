@@ -55,3 +55,23 @@ def _pma_set_debug_flag(flag):
     _pma_debug = flag
     if flag is True:
         print("Debug flag enabled. You will receive extra feedback and messages from pma_python (like this one)")
+
+def get_supported_formats(pandas = False):
+    """
+    Get an up-to-date list of all supported file formats on the Pathomation software platform
+    """
+    global _pma_debug
+    url = "https://host.pathomation.com/etc/supported_formats.php"
+        
+    if _pma_debug == True:
+        print(url)
+        
+    headers = {'Accept': 'application/json'}
+    r = requests.get(url, headers=headers)
+    json = r.json()
+    
+    if (pandas == True):
+        import pandas as pd
+        return pd.DataFrame.from_records(json, index=["vendor"])
+    else:
+        return json

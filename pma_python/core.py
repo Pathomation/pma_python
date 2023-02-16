@@ -78,19 +78,24 @@ def _pma_first_session_id():
     if (len(_pma_sessions.keys()) > 0):
         # yes we do! This means that when there's a PMA.core active session AND PMA.core.lite version running,
         # the PMA.core active will be selected and returned
+        if pma._pma_debug == True:
+            print("Found SessionID:", list(_pma_sessions.keys())[0])
         return list(_pma_sessions.keys())[0]
     else:
         # ok, we don't have stored sessions; not a problem per se...
         if (_pma_is_lite()):
             if (_pma_pmacoreliteSessionID not in _pma_slideinfos):
                 # _pma_sessions[_pma_pmacoreliteSessionID] = _pma_pmacoreliteURL
-
                 _pma_slideinfos[_pma_pmacoreliteSessionID] = dict()
             if (_pma_pmacoreliteSessionID not in _pma_amount_of_data_downloaded):
                 _pma_amount_of_data_downloaded[_pma_pmacoreliteSessionID] = 0
+            if pma._pma_debug == True:
+                print("Found PMA.start SessionID:", _pma_pmacoreliteSessionID)
             return _pma_pmacoreliteSessionID
         else:
             # no stored PMA.core sessions found NOR PMA.core.lite
+            if pma._pma_debug == True:
+                print("No SessionID found")
             return None
 
 
@@ -132,8 +137,10 @@ def _pma_is_lite(pmacoreURL=_pma_pmacoreliteURL):
     url = pma._pma_join(pmacoreURL, "api/json/IsLite")
     try:
         r = requests.get(url)
+        print("PMA.start detected successfully")
     except Exception as e:
-        # this happens when NO instance of PMA.core is detected
+        # this happens when NO instance of PMA.core.lite is detected
+        print("PMA.start not found")
         return None
     value = r.json()
     return value is True
@@ -299,6 +306,8 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
             _pma_amount_of_data_downloaded[sessionID] = 0
             return sessionID
         else:
+            if pma._pma_debug == True:
+                print("PMA.start not found on (localhost); download from https://free.pathomation.com")
             return None
 
     headers = {'Accept': 'application/json'}
@@ -351,6 +360,8 @@ def disconnect(sessionID=None):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "DeAuthenticate?sessionID=" + pma._pma_q((sessionID))
+    if pma._pma_debug == True:
+        print(url)
     contents = urlopen(url).read()
     global _pma_amount_of_data_downloaded
     _pma_amount_of_data_downloaded[sessionID] += len(contents)
@@ -368,6 +379,8 @@ def get_root_directories(sessionID=None):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "GetRootDirectories?sessionID=" + pma._pma_q((sessionID))
+    if pma._pma_debug == True:
+        print(url)
     r = requests.get(url)
     json = r.json()
     global _pma_amount_of_data_downloaded
