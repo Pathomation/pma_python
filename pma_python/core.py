@@ -904,7 +904,8 @@ def get_barcode_image(slideRef, width=None, height=None, sessionID=None):
     sessionID = _pma_session_id(sessionID)
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
-    r = requests.get(get_barcode_url(slideRef, width, height, sessionID))
+    url = get_barcode_url(slideRef, width, height, sessionID)
+    r = requests.get(url)
     if pma._pma_debug == True:
         print(url)
     img = Image.open(BytesIO(r.content))
