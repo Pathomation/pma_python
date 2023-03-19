@@ -994,6 +994,39 @@ def get_macro_image(slideRef, width=None, height=None, sessionID=None):
     _pma_amount_of_data_downloaded[sessionID] += len(r.content)
     return img
 
+def get_tile_url(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
+    """
+    Get a single tile at position (x, y)
+    Format can be 'jpg' or 'png'
+    Quality is an integer value and varies from 0 (as much compression as possible; not recommended) to 100 (100%, no compression)
+    """
+    sessionID = _pma_session_id(sessionID)
+    if (slideRef.startswith("/")):
+        slideRef = slideRef[1:]
+    if (zoomlevel is None):
+        zoomlevel = 0  # get_max_zoomlevel(slideRef, sessionID)
+
+    url = _pma_url(sessionID) + "tile"
+    if url is None:
+        raise Exception("Unable to determine the PMA.core instance belonging to " + str(sessionID))
+
+    params = {
+        "sessionID": sessionID,
+        "channels": 0,
+        "timeframe": 0,
+        "layer": int(round(zstack)),
+        "pathOrUid": slideRef,
+        "x": int(round(x)),
+        "y": int(round(y)),
+        "z": int(round(zoomlevel)),
+        "format": format,
+        "quality": quality,
+        "cache": str(_pma_usecachewhenretrievingtiles).lower()
+    }
+
+    r = requests.get(url, params=params)
+    return r.request.url
+
 def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, format="jpg", quality=100):
     """
     Get a single tile at position (x, y)
