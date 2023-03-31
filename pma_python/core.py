@@ -1630,8 +1630,18 @@ def download(slideRef, save_directory=None, sessionID=None):
                                 print("{0:.0%}".format(progress))
                             prev = progress
 
+def dummy_annotation():
+    """Returns a dictionary with the right keys and default values filled out already to be used as input for add_annotation() and add_annotations
+    """
+    return { "classification": "",
+        "notes": "",
+        "geometry": "",    # shapely?
+        "color": "",
+        "fillColor": "",
+        "lineThickness": 1}
 
-def add_annotation(slideRef, classification, notes, geometry, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
+#def add_annotation(slideRef, classification, notes, ann, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
+def add_annotation(slideRef, classification, notes, ann, color="#000000", layerID=0, sessionID=None):
     """Adds an anotation to a slide with the specified parameters
 
     :param slideRef: The slide path to add annotation to
@@ -1640,30 +1650,36 @@ def add_annotation(slideRef, classification, notes, geometry, color="#000000", l
     :type classification: str
     :param notes: A string for free text notes to be associated with this annotation
     :type notes: str
-    :param geometry: A Well-Known Text (WKT) representation of the geometry of this annotation
-    :type geometry: str
+    :param ann: A Well-Known Text (WKT) representation of the geometry of this annotation; can be a dictionary as well
+    :type geometry: str, dict
     :param color: An HTML color, defaults to "#000000"
     :type color: str, optional
     :param layerID: The layer id to attach this annotation to, defaults to 0
     :type layerID: int, optional
     :param sessionID: The PMA.core session id, defaults to None for autodetection
     :type sessionID: str, optional
-    :param fillColor: The fill color for the annotation if any
-    :type fillColor: str, optional
-    :param opacity: The fill opacity for the annotation 
-    :type opacity: number, optional
-    :param outlineOpacity: The outline opacity for the annotation if any
-    :type outlineOpacity: number, optional
     :raises ValueError: If the server response is not in a known format
     :return: An integer representing the annotation id
     :rtype: int
     """
+#    :param fillColor: The fill color for the annotation if any
+#    :type fillColor: str, optional
+#    :param opacity: The fill opacity for the annotation 
+#    :type opacity: number, optional
+#    :param outlineOpacity: The outline opacity for the annotation if any
+#    :type outlineOpacity: number, optional
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
             raise ValueError("PMA.core.lite found running, but doesn't support adding annotations.")
         else:
             raise ValueError("PMA.core.lite not found, and besides; it doesn't support adding annotations.")
+
+    if not (type(ann) is dict):
+        geo = ann
+        ann = dummy_annotation()
+        ann["geometry"] = geo
+        ann["color"] = color
 
     url = _pma_api_url(sessionID) + "AddAnnotation"
 
@@ -1673,8 +1689,8 @@ def add_annotation(slideRef, classification, notes, geometry, color="#000000", l
         "classification": classification,
         "layerID": layerID,
         "notes": notes,
-        "geometry": geometry,
-        "color": color
+        "geometry": ann["geometry"],
+        "color": ann["color"]
     }
 
     if pma._pma_debug == True:
@@ -1684,6 +1700,93 @@ def add_annotation(slideRef, classification, notes, geometry, color="#000000", l
     json = r.json()
     return json
 
+#def add_annotations(slideRef, classification, notes, anns, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
+def add_annotations(slideRef, classification, notes, anns, color="#000000", layerID=0, sessionID=None):
+    """Adds multiple anotations to a slide with the specified parameters
+
+    :param slideRef: The slide path to add annotation to
+    :type slideRef: str
+    :param classification: A string representing the class of this annotation (tumor, necrosis etc)
+    :type classification: str
+    :param notes: A string for free text notes to be associated with this annotation
+    :type notes: str
+    :param anns: A list of Well-Known Text (WKT) representation of the geometry of this annotation
+    :type anns: list
+    :param color: An HTML color, defaults to "#000000"; you can specify a separate color for each annotation individually as well
+    :type color: str, optional
+    :param layerID: The layer id to attach this annotation to, defaults to 0
+    :type layerID: int, optional
+    :param sessionID: The PMA.core session id, defaults to None for autodetection
+    :type sessionID: str, optional
+    :raises ValueError: If the server response is not in a known format
+    :return: An integer representing the annotation id
+    :rtype: int
+    """
+#    :param fillColor: The fill color for the annotation if any
+#    :type fillColor: str, optional
+#    :param opacity: The fill opacity for the annotation 
+#    :type opacity: number, optional
+#    :param outlineOpacity: The outline opacity for the annotation if any
+#    :type outlineOpacity: number, optional
+
+    if not (type(anns) is list):
+        anns = [anns]
+
+    sessionID = _pma_session_id(sessionID)
+    if (sessionID == _pma_pmacoreliteSessionID):
+        if is_lite():
+            raise ValueError("PMA.core.lite found running, but doesn't support adding annotations.")
+        else:
+            raise ValueError("PMA.core.lite not found, and besides; it doesn't support adding annotations.")
+
+    json_all_added_annotations = []
+    for ann in anns:
+        
+        if not (type(ann) is dict):
+            geo = ann
+            ann = dummy_annotation()
+            ann["geometry"] = geo
+            ann["color"] = "#3333FF"
+
+        json_single_annotation = {
+            "Classification": classification,
+            "LayerID": layerID,
+            "Notes": notes,
+            "Geometry": ann["geometry"],
+            "Color": ann["color"],
+            "FillColor": ann["fillColor"],
+            "LineThickness": ann["lineThickness"]
+            }
+        json_all_added_annotations.append(json_single_annotation)
+
+    url = _pma_api_url(sessionID) + "AddAnnotation"
+
+    data = {
+        "sessionID": sessionID,
+        "pathOrUid": slideRef,
+        "deleted": [],
+        "updated": [],
+        "added": json_all_added_annotations
+    }
+    
+    url = c.core_url + "/api/json/SaveAnnotations"
+
+#    data = {
+#        "sessionID": sessionID,
+#        "pathOrUid": slideRef,
+#        "classification": classification,
+#        "layerID": layerID,
+#        "notes": notes,
+#        "geometry": geometry,
+#        "color": color
+#   }
+
+    if pma._pma_debug == True:
+        print("url =", url)
+
+    r = requests.post(url, json=data)
+    json = r.json()
+    return json
 
 def clear_all_annotations(slideRef, sessionID=None):
     sessionID = _pma_session_id(sessionID)
