@@ -1,4 +1,5 @@
 from math import ceil
+from pprint import pprint
 from PIL import Image
 from random import choice
 from io import BytesIO
@@ -1759,8 +1760,6 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
             }
         json_all_added_annotations.append(json_single_annotation)
 
-    url = _pma_api_url(sessionID) + "AddAnnotation"
-
     data = {
         "sessionID": sessionID,
         "pathOrUid": slideRef,
@@ -1769,7 +1768,7 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
         "added": json_all_added_annotations
     }
     
-    url = c.core_url + "/api/json/SaveAnnotations"
+    url = _pma_api_url(sessionID) + "AddAnnotations"
 
 #    data = {
 #        "sessionID": sessionID,
