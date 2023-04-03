@@ -1637,7 +1637,7 @@ def dummy_annotation():
     return { "classification": "",
         "notes": "",
         "geometry": "",    # shapely?
-        "color": "",
+        "color": "#000000",
         "fillColor": "",
         "lineThickness": 1}
 
@@ -1663,12 +1663,6 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
     :return: An integer representing the annotation id
     :rtype: int
     """
-#    :param fillColor: The fill color for the annotation if any
-#    :type fillColor: str, optional
-#    :param opacity: The fill opacity for the annotation 
-#    :type opacity: number, optional
-#    :param outlineOpacity: The outline opacity for the annotation if any
-#    :type outlineOpacity: number, optional
     sessionID = _pma_session_id(sessionID)
     if (sessionID == _pma_pmacoreliteSessionID):
         if is_lite():
@@ -1696,6 +1690,8 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
 
     if pma._pma_debug == True:
         print("url =", url)
+        print("payload = ")
+        pprint(data)
 
     r = requests.post(url, json=data)
     json = r.json()
@@ -1723,12 +1719,6 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :return: An integer representing the annotation id
     :rtype: int
     """
-#    :param fillColor: The fill color for the annotation if any
-#    :type fillColor: str, optional
-#    :param opacity: The fill opacity for the annotation 
-#    :type opacity: number, optional
-#    :param outlineOpacity: The outline opacity for the annotation if any
-#    :type outlineOpacity: number, optional
 
     if not (type(anns) is list):
         anns = [anns]
@@ -1770,18 +1760,10 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     
     url = _pma_api_url(sessionID) + "AddAnnotations"
 
-#    data = {
-#        "sessionID": sessionID,
-#        "pathOrUid": slideRef,
-#        "classification": classification,
-#        "layerID": layerID,
-#        "notes": notes,
-#        "geometry": geometry,
-#        "color": color
-#   }
-
     if pma._pma_debug == True:
         print("url =", url)
+        print("payload = ")
+        pprint(data)
 
     r = requests.post(url, json=data)
     json = r.json()
