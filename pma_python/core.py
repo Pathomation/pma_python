@@ -1758,7 +1758,7 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
         "added": json_all_added_annotations
     }
     
-    url = _pma_api_url(sessionID) + "AddAnnotations"
+    url = _pma_api_url(sessionID) + "SaveAnnotations"
 
     if pma._pma_debug == True:
         print("url =", url)
@@ -1766,6 +1766,10 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
         pprint(data)
 
     r = requests.post(url, json=data)
+    
+    if pma._pma_debug == True:
+        print("HTTP return value = ", r.status_code)
+    
     json = r.json()
     return json
 
