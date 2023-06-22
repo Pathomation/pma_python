@@ -318,7 +318,7 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     get_url = post_url + "&username=" + pma._pma_q(pmacoreUsername) + "&password=" + pma._pma_q(pmacorePassword)
 
     if pma._pma_debug == True:
-        print(get_url)
+        print(post_url + "&username=" + pma._pma_q(pmacoreUsername) + "&password=TOP_SECRET")
 
     try:
         r = requests.post(post_url, headers=headers, json={"username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"})
