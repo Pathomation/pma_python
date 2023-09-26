@@ -1,8 +1,9 @@
 import os
-import requests
 import urllib.error
 from urllib import request, parse
 from pma_python import core, pma
+
+import requests
 
 __version__ = pma.__version__
 
@@ -50,7 +51,8 @@ def _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID):
     """
     Retrieve a list of currently defined training sessions in PMA.control.
     """
-    url = pma._pma_join(pmacontrolURL, "api/Sessions?sessionID=" + pma._pma_q(pmacoreSessionID))
+    url = pma._pma_join(
+        pmacontrolURL, "api/Sessions?sessionID=" + pma._pma_q(pmacoreSessionID))
     try:
         headers = {'Accept': 'application/json'}
         r = pma._pma_http_get(url, headers)
@@ -76,13 +78,15 @@ def _pma_format_training_session_properly(sess):
         "NumberOfParticipants": len(sess["Participants"])
     }
     for coll in sess["CaseCollections"]:
-        sess_data["CaseCollections"][coll["CaseCollectionId"]] = {"Title": coll["Title"], "Url": coll["Url"]}
+        sess_data["CaseCollections"][coll["CaseCollectionId"]] = {
+            "Title": coll["Title"], "Url": coll["Url"]}
 
     return sess_data
 
 
 def get_training_sessions_for_participant(pmacontrolURL, participantUsername, pmacoreSessionID):
-    full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+    full_training_sessions = _pma_get_training_sessions(
+        pmacontrolURL, pmacoreSessionID)
     new_training_session_dict = {}
     for sess in full_training_sessions:
         for part, role in sess["Participants"].items():
@@ -118,7 +122,8 @@ def is_participant_in_training_session(pmacontrolURL, participantUsername, pmaco
     """
     Check to see if a specific user participates in a specific session
     """
-    all_parts = get_training_session_participants(pmacontrolURL, pmacontrolTrainingSessionID, pmacoreSessionID)
+    all_parts = get_training_session_participants(
+        pmacontrolURL, pmacontrolTrainingSessionID, pmacoreSessionID)
     return participantUsername in all_parts.keys()
 
 
@@ -131,14 +136,16 @@ def get_training_session_url(pmacontrolURL, participantSessionID, participantUse
             if k == pmacontrolCaseCollectionID:
                 return v["Url"] + "?SessionID=" + participantSessionID
     else:
-        raise ValueError("Participant " + participantUsername + " is not registered for this session")
+        raise ValueError("Participant " + participantUsername +
+                         " is not registered for this session")
 
 
 def get_all_participants(pmacontrolURL, pmacoreSessionID):
     """
     Get a list of all participants registered across all sessions
     """
-    full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+    full_training_sessions = _pma_get_training_sessions(
+        pmacontrolURL, pmacoreSessionID)
     user_dict = {}
     for sess in full_training_sessions:
         s = _pma_format_training_session_properly(sess)
@@ -157,7 +164,7 @@ def register_participant_for_training_session(pmacontrolURL,
                                               pmacoreSessionID,
                                               pmacontrolInteractionMode=pma_interaction_mode_locked):
     """
-    Registers a particpant for a given session, assign a specific role
+    Registers a participant for a given session, assign a specific role
     """
     # if is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolTrainingSessionID, pmacoreSessionID):
     # raise NameError ("PMA.core user " + participantUsername + " is ALREADY registered in PMA.control training session " + str(pmacontrolTrainingSessionID))
@@ -207,7 +214,8 @@ def register_participant_for_project(pmacontrolURL,
 
 def _pma_get_case_collection_training_session_id(pmacontrolURL, pmacontrolTrainingSessionID, pmacontrolCaseCollectionID,
                                                  pmacoreSessionID):
-    full_training_sessions = _pma_get_training_sessions(pmacontrolURL, pmacoreSessionID)
+    full_training_sessions = _pma_get_training_sessions(
+        pmacontrolURL, pmacoreSessionID)
     new_training_session_dict = {}
     for sess in full_training_sessions:
         if sess["Id"] == pmacontrolTrainingSessionID:
@@ -220,11 +228,12 @@ def _pma_get_case_collection_training_session_id(pmacontrolURL, pmacontrolTraini
 def set_participant_interactionmode(pmacontrolURL, participantUsername, pmacontrolTrainingSessionID,
                                     pmacontrolCaseCollectionID, pmacontrolInteractionMode, pmacoreSessionID):
     """
-    Assign an interaction mode to a particpant for a given Case Collection within a trainingsession
+    Assign an interaction mode to a participant for a given Case Collection within a training session
     """
     if not is_participant_in_training_session(pmacontrolURL, participantUsername, pmacontrolTrainingSessionID,
                                               pmacoreSessionID):
-        raise NameError("PMA.core user " + participantUsername + " is NOT registered in PMA.control training session " + str(pmacontrolTrainingSessionID))
+        raise NameError("PMA.core user " + participantUsername +
+                        " is NOT registered in PMA.control training session " + str(pmacontrolTrainingSessionID))
     url = pma._pma_join(
         pmacontrolURL,
         "api/Sessions/") + str(pmacontrolTrainingSessionID) + "/InteractionMode?SessionID=" + pmacoreSessionID
@@ -329,7 +338,8 @@ def _pma_get_case_collections(pmacontrolURL, pmacoreSessionID):
     (RAW JSON data; not suited for human consumption)
     """
 
-    url = pma._pma_join(pmacontrolURL, "api/CaseCollections?sessionID=" + pma._pma_q(pmacoreSessionID))
+    url = pma._pma_join(
+        pmacontrolURL, "api/CaseCollections?sessionID=" + pma._pma_q(pmacoreSessionID))
     try:
         headers = {'Accept': 'application/json'}
         r = pma._pma_http_get(url, headers)
@@ -424,7 +434,8 @@ def _pma_get_projects(pmacontrolURL, pmacoreSessionID):
     Retrieve all projects and their data in PMA.control
     (RAW JSON data; not suited for human consumption)
     """
-    url = pma._pma_join(pmacontrolURL, "api/Projects?sessionID=" + pma._pma_q(pmacoreSessionID))
+    url = pma._pma_join(
+        pmacontrolURL, "api/Projects?sessionID=" + pma._pma_q(pmacoreSessionID))
     try:
         headers = {'Accept': 'application/json'}
         r = pma._pma_http_get(url, headers)
@@ -441,7 +452,8 @@ def get_projects(pmacontrolURL, pmacoreSessionID):
     projects = {}
     for prj in all_projects:
         # summary session-related information so that it makes sense
-        prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
+        prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(
+            prj['Sessions'])
 
         # now integrate case collection information
         colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
@@ -488,7 +500,8 @@ def get_project(pmacontrolURL, pmacontrolProjectID, pmacoreSessionID):
     for prj in all_projects:
         if prj['Id'] == pmacontrolProjectID:
             # summary session-related information so that it makes sense
-            prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
+            prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(
+                prj['Sessions'])
 
             # now integrate case collection information
             colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)
@@ -536,7 +549,8 @@ def search_project(pmacontrolURL, titleSubstring, pmacoreSessionID):
     for prj in all_projects:
         if titleSubstring.lower() in prj['Title'].lower():
             # summary session-related information so that it makes sense
-            prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(prj['Sessions'])
+            prj['Sessions'] = _pma_format_project_embedded_training_sessions_properly(
+                prj['Sessions'])
 
             # now integrate case collection information
             colls = _pma_get_case_collections(pmacontrolURL, pmacoreSessionID)

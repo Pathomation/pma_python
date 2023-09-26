@@ -6,6 +6,7 @@ from random import choice
 from io import BytesIO
 from urllib.parse import quote
 from urllib.request import urlopen
+
 import requests
 
 __version__ = pma.__version__
@@ -34,17 +35,18 @@ def _pma_check_for_pma_start(method="", url=None, session=None):
         raise Exception("PMA.start doesn't support", method)
     elif (url == core._pma_pmacoreliteURL):
         if core.is_lite():
-            raise ValueError("PMA.core.lite found running, but doesn't support an administrative back-end")
+            raise ValueError(
+                "PMA.core.lite found running, but doesn't support an administrative back-end")
         else:
             raise ValueError(
                 "PMA.core.lite not found, and besides; it doesn't support an administrative back-end anyway")
 
 
-def _pma_http_post(url, data):
+def _pma_http_post(url, data, verify=True):
     if (pma._pma_debug is True):
         print("Posting to", url)
         print("   with payload", data)
-    resp = requests.post(url, json=data)
+    resp = requests.post(url, json=data, verify=verify)
     if pma._pma_debug is True and "code" in resp.text:
         print(resp.text)
     else:
@@ -59,7 +61,8 @@ def admin_connect(pmacoreURL, pmacoreAdmUsername, pmacoreAdmPassword):
     """
     _pma_check_for_pma_start("admin_connect", pmacoreURL)
 
-    url = pma._pma_join(pmacoreURL, "admin/json/AdminAuthenticate?caller=SDK.Python")
+    url = pma._pma_join(
+        pmacoreURL, "admin/json/AdminAuthenticate?caller=SDK.Python")
     url += "&username=" + pma._pma_q(pmacoreAdmUsername)
     url += "&password=" + pma._pma_q(pmacoreAdmPassword)
 
@@ -103,7 +106,8 @@ def send_email_reminder(admSessionID, login, subject="PMA.core password reminder
     """
     Send out an email reminder to the address associated with user login
     """
-    reminderParams = {"username": login, "subject": subject, "messageTemplate": ""}
+    reminderParams = {"username": login,
+                      "subject": subject, "messageTemplate": ""}
     url = _pma_admin_url(admSessionID) + "EmailPassword"
     reminderResponse = _pma_http_post(url, reminderParams)
     return reminderResponse
@@ -132,7 +136,8 @@ def add_user(admSessionID, login, firstName, lastName, email, pwd, canAnnotate=F
 
 def user_exists(admSessionID, u):
     from pma_python import pma
-    url = (_pma_admin_url(admSessionID) + "SearchUsers?source=Local" + "&SessionID=" + pma._pma_q(admSessionID) + "&query=" + pma._pma_q(u))
+    url = (_pma_admin_url(admSessionID) + "SearchUsers?source=Local" +
+           "&SessionID=" + pma._pma_q(admSessionID) + "&query=" + pma._pma_q(u))
     try:
         r = pma._pma_http_get(url, {'Accept': 'application/json'})
     except Exception as e:
@@ -201,7 +206,8 @@ def create_root_directory(admSessionID,
                           fileSystemMountingPoints=None,
                           description="Root dir created through pma_python",
                           isPublic=False,
-                          isOffline=False):
+                          isOffline=False,
+                          verify=True):
     createRootDirectoryParams = {
         "sessionID": admSessionID,
         "rootDirectory": {
@@ -214,7 +220,8 @@ def create_root_directory(admSessionID,
         }
     }
     url = _pma_admin_url(admSessionID) + "CreateRootDirectory"
-    createRootDirectoryReponse = requests.post(url, json=createRootDirectoryParams)
+    createRootDirectoryReponse = requests.post(
+        url, json=createRootDirectoryParams, verify=verify)
     return createRootDirectoryReponse.text
 
 
@@ -236,7 +243,8 @@ def create_directory(admSessionID, path):
 
 def rename_directory(admSessionID, originalPath, newName):
     url = _pma_admin_url(admSessionID) + "RenameDirectory"
-    payload = {"sessionID": admSessionID, "path": originalPath, "newName": newName}
+    payload = {"sessionID": admSessionID,
+               "path": originalPath, "newName": newName}
     result = _pma_http_post(url, payload)
     if "Code" in result:
         if pma._pma_debug is True:
@@ -261,6 +269,7 @@ def delete_directory(admSessionID, path):
         return False
     return True
 
+
 def delete_slide(admSessionID, slideRef):
     """
     Deletes a slide from the PMA.core storage 
@@ -277,7 +286,8 @@ def delete_slide(admSessionID, slideRef):
         return False
     return True
 
-def reverse_uid(admSessionID, slideRefUid):
+
+def reverse_uid(admSessionID, slideRefUid, verify=True):
     """
     lookup the reverse path of a UID for a specific slide
     """
@@ -290,18 +300,21 @@ def reverse_uid(admSessionID, slideRefUid):
             raise ValueError(
                 "PMA.core.lite not found, and besides; it doesn't support UIDs. For advanced anonymization, please upgrade to PMA.core."
             )
-    url = _pma_admin_url(admSessionID) + "ReverseLookupUID?sessionID=" + pma._pma_q(admSessionID) + "&uid=" + pma._pma_q(slideRefUid)
+    url = _pma_admin_url(admSessionID) + "ReverseLookupUID?sessionID=" + \
+        pma._pma_q(admSessionID) + "&uid=" + pma._pma_q(slideRefUid)
     if (pma._pma_debug is True):
         print(url)
-    r = requests.get(url)
+    r = requests.get(url, verify=verify)
     json = r.json()
     if ("Code" in json):
-        raise Exception("reverse_uid on  " + slideRefUid + " resulted in: " + json["Message"])
+        raise Exception("reverse_uid on  " + slideRefUid +
+                        " resulted in: " + json["Message"])
     else:
         path = json
     return path
 
-def reverse_root_directory(admSessionID, alias):
+
+def reverse_root_directory(admSessionID, alias, verify=True):
     """
     lookup the reverse path of a root-directory
     """
@@ -314,13 +327,15 @@ def reverse_root_directory(admSessionID, alias):
             raise ValueError(
                 "PMA.core.lite not found, and besides; it doesn't support this method."
             )
-    url = _pma_admin_url(admSessionID) + "ReverseLookupRootDirectory?sessionID=" + pma._pma_q(admSessionID) + "&alias=" + pma._pma_q(alias)
+    url = _pma_admin_url(admSessionID) + "ReverseLookupRootDirectory?sessionID=" + \
+        pma._pma_q(admSessionID) + "&alias=" + pma._pma_q(alias)
     if (pma._pma_debug is True):
         print(url)
-    r = requests.get(url)
+    r = requests.get(url, verify=verify)
     json = r.json()
     if ("Code" in json):
-        raise Exception("reverse_root_directory on  " + alias + " resulted in: " + json["Message"])
+        raise Exception("reverse_root_directory on  " +
+                        alias + " resulted in: " + json["Message"])
     else:
         path = json
     return path
