@@ -6,6 +6,7 @@ from random import choice
 from io import BytesIO
 from urllib.parse import quote
 from urllib.request import urlopen
+
 import requests
 
 __version__ = pma.__version__

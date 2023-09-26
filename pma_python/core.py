@@ -10,12 +10,12 @@ from pma_python import pma
 # general purpose packages
 import os
 import datetime
-import requests
 import io
 import shutil
 import re
 import pandas as pd
 
+import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
 __version__ = pma.__version__

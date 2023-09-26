@@ -1,8 +1,9 @@
-from urllib.parse import quote
-from os.path import join
 import os
-import requests
+from os.path import join
+from urllib.parse import quote
 from pma_python import version
+
+import requests
 
 __version__ = version.__version__
 
