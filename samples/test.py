@@ -55,9 +55,9 @@ def main():
             # 4c. Return an array of slides available to sessionID in the startDir directory
             parent_dir = str(input("\nEnter the parent directory: "))
             sub_dir = str(input("\nEnter the sub-directory: "))
-            scenario4(parent_dir=parent_dir, sub_dir=sub_dir, 
-                    session_id=connect(url, username, password, False), 
-                    recursive=False, verify=False)
+            scenario4(parent_dir=parent_dir, sub_dir=sub_dir,                      
+                      session_id=connect(url, username, password, False), 
+                      recursive=False, verify=False)
         elif scenario_num == 5:
             # 5a. Return raw image information in the form of nested dictionaries
             # 5b. Get the UID for a specific slide
