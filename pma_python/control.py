@@ -1,8 +1,9 @@
 import os
-import requests
 import urllib.error
 from urllib import request, parse
 from pma_python import core, pma
+
+import requests
 
 __version__ = pma.__version__
 
