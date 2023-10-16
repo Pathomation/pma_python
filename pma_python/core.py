@@ -1402,7 +1402,7 @@ def show_slide(slideRef, sessionID=None):
         os_cmd = "start "
 
     if (sessionID == _pma_pmacoreliteSessionID):
-        url = "http://free.pathomation.com/pma-view-lite/?path=" + \
+        url = "http://localhost:54001/app?path=" + \
             pma._pma_q(slideRef)
     else:
         url = _pma_url(sessionID)
