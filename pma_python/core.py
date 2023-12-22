@@ -288,6 +288,16 @@ def get_api_verion_string(pmacoreURL=_pma_pmacoreliteURL):
     return ".".join([str(x) for x in v])
 
 
+def register_session_id(session_id, pma_core_url):
+    """
+    Registers a session ID with it's corresponding server URL
+    """
+    global _pma_sessions  # so afterwards we can look up what username actually belongs to a sessions
+    global _pma_amount_of_data_downloaded
+    _pma_amount_of_data_downloaded[session_id] = 0
+    _pma_sessions[session_id] = pma_core_url
+
+
 def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword="", verify=True):
     """
     Attempt to connect to PMA.core instance; success results in a SessionID
@@ -1350,7 +1360,7 @@ def export_annotations(slideRef, annotation_source_format=[pma_annotation_source
     if (r.ok):
         return BytesIO(r.content)
     else:
-        raise ValueError("Unable to get annotations ("+str(r.status_code)+")")
+        raise ValueError("Unable to get annotations (" + str(r.status_code) + ")")
     return None
 
 
