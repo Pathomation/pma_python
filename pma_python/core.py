@@ -294,8 +294,10 @@ def register_session_id(session_id, pma_core_url):
     """
     global _pma_sessions  # so afterwards we can look up what username actually belongs to a sessions
     global _pma_amount_of_data_downloaded
+    global _pma_slideinfos
     _pma_amount_of_data_downloaded[session_id] = 0
     _pma_sessions[session_id] = pma_core_url
+    _pma_slideinfos[sessionID] = {}
 
 
 def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword="", verify=True):
