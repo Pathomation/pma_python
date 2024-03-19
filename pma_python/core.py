@@ -297,7 +297,7 @@ def register_session_id(session_id, pma_core_url):
     global _pma_slideinfos
     _pma_amount_of_data_downloaded[session_id] = 0
     _pma_sessions[session_id] = pma_core_url
-    _pma_slideinfos[sessionID] = {}
+    _pma_slideinfos[session_id] = {}
 
 
 def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword="", verify=True):
