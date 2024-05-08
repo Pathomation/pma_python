@@ -1734,10 +1734,8 @@ def dummy_annotation():
             "notes": "",
             "geometry": "",    # shapely?
             "color": "#000000",
-            "fillColor": "",
+            "fillColor": "#FFFFFF00",
             "lineThickness": 1}
-
-# def add_annotation(slideRef, classification, notes, ann, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
 
 
 def add_annotation(slideRef, classification, notes, ann, color="#000000", layerID=0, sessionID=None, verify=True):
@@ -1758,7 +1756,7 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
     :param sessionID: The PMA.core session id, defaults to None for autodetection
     :type sessionID: str, optional
     :raises ValueError: If the server response is not in a known format
-    :return: An integer representing the annotation id
+    :return: JSON object containing the annotation ID
     :rtype: int
     """
     sessionID = _pma_session_id(sessionID)
@@ -1770,11 +1768,13 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
             raise ValueError(
                 "PMA.core.lite not found, and besides; it doesn't support adding annotations.")
 
-    if not (type(ann) is dict):
+    if not (isinstance(ann, dict) or isinstance(ann, list)):
         geo = ann
         ann = dummy_annotation()
         ann["geometry"] = geo
         ann["color"] = color
+    else:
+        return 'ann parameter should be WKT(Well-Known Text) string'
 
     url = _pma_api_url(sessionID) + "AddAnnotation"
 
@@ -1794,11 +1794,11 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
         pprint(data)
 
     r = requests.post(url, json=data, verify=verify)
-    json = r.json()
-    return json
 
-# def add_annotations(slideRef, classification, notes, anns, color="#000000", layerID=0, sessionID=None, fillColor = "#cccccc", opacity = 0.4, outlineOpacity = 1.0):
-
+    if isinstance(r.json(), int):
+        return {'Code': 'Success', 'Message': 'Annotation successfully added', 'annotation_id': r.json()}
+    else:
+        return r.json()
 
 def add_annotations(slideRef, classification, notes, anns, color="#000000", layerID=0, sessionID=None, verify=True):
     """Adds multiple annotations to a slide with the specified parameters
@@ -1807,7 +1807,7 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :type slideRef: str
     :param classification: A string representing the class of this annotation (tumor, necrosis etc)
     :type classification: str
-    :param notes: A string for free text notes to be associated with this annotation
+    :param notes: A string for free text notes to be associated with this annotations. If param Notes is empty the notes parameter of the annotations object will be used
     :type notes: str
     :param anns: A list of Well-Known Text (WKT) representation of the geometry of this annotation
     :type anns: list
@@ -1817,9 +1817,15 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :type layerID: int, optional
     :param sessionID: The PMA.core session id, defaults to None for autodetection
     :type sessionID: str, optional
+    :param verify: confirm whether TLS connection has to be verified
+    :type verify: boolean, optional
     :raises ValueError: If the server response is not in a known format
     :return: An integer representing the annotation id
     :rtype: int
+
+    In case if you want to have different notes per annotation the notes parameter has
+    to be empty and the annotation dictionary should contain a notes key: value pair.
+
     """
 
     if not (type(anns) is list):
@@ -1846,7 +1852,7 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
         json_single_annotation = {
             "Classification": classification,
             "LayerID": layerID,
-            "Notes": notes,
+            "Notes": notes if notes != "" else ann.get("Notes", ""),
             "Geometry": ann["geometry"],
             "Color": ann["color"],
             "FillColor": ann["fillColor"],
@@ -1874,8 +1880,10 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     if pma._pma_debug == True:
         print("HTTP return value = ", r.status_code)
 
-    json = r.json()
-    return json
+    if isinstance(r.json(), list):
+        return {'Code': 'Success', 'Message': 'Annotations successfully added', 'annotation_id': r.json()}
+    else:
+        return r.json()
 
 
 def clear_all_annotations(slideRef, sessionID=None):
