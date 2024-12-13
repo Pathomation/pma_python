@@ -3,3 +3,6 @@ __pycache__/
 build/
 dist/
 pma_python\.egg-info/
+venv/
+/samples/
+setup.py
