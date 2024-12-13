@@ -312,6 +312,8 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     # keep track of how much data was downloaded
     global _pma_amount_of_data_downloaded
 
+    url = ""
+
     if (pmacoreURL == _pma_pmacoreliteURL):
         if is_lite():
             # no point authenticating localhost / PMA.core.lite
@@ -832,7 +834,7 @@ def get_zoomlevels_dict(slideRef, sessionID=None, min_number_of_tiles=0):
     return d
 
 
-def get_pixels_per_micrometer(slideRef, zoomlevel=None, sessionID=None):
+def get_pixels_per_micrometer(slideRef, sessionID=None, zoomlevel=None,):
     """
     Retrieve the physical dimension in terms of pixels per micrometer.
     When zoomlevel is left to its default value of None, dimensions at the highest zoomlevel are returned
@@ -845,11 +847,11 @@ def get_pixels_per_micrometer(slideRef, zoomlevel=None, sessionID=None):
     if (zoomlevel is None or zoomlevel == maxZoomLevel):
         return (float(xppm), float(yppm))
     else:
-        factor = 2**(zoomlevel - maxZoomLevel)
+        factor = 2**(int(zoomlevel) - int(maxZoomLevel))
         return (float(xppm) / factor, float(yppm) / factor)
 
 
-def get_pixel_dimensions(slideRef, zoomlevel=None, sessionID=None):
+def get_pixel_dimensions(slideRef, sessionID=None, zoomlevel=None):
     """Get the total dimensions of a slide image at a given zoomlevel"""
     maxZoomLevel = get_max_zoomlevel(slideRef, sessionID)
     info = get_slide_info(slideRef, sessionID)
@@ -1809,7 +1811,9 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :type classification: str
     :param notes: A string for free text notes to be associated with this annotations. If param Notes is empty the notes parameter of the annotations object will be used
     :type notes: str
-    :param anns: A list of Well-Known Text (WKT) representation of the geometry of this annotation
+    :param anns: A list of Well-Known Text (WKT) representation of the geometry of this annotation.
+        anns is an array that contains dictionaries with single annotations values like Classification, LayerID, Notes,
+        Geometry, Color, FillColor, lineTickness.
     :type anns: list
     :param color: An HTML color, defaults to "#000000"; you can specify a separate color for each annotation individually as well
     :type color: str, optional
@@ -1823,8 +1827,20 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :return: An integer representing the annotation id
     :rtype: int
 
-    In case if you want to have different notes per annotation the notes parameter has
-    to be empty and the annotation dictionary should contain a notes key: value pair.
+    Example:
+        anns = []
+        annotation = {
+            "geometry": string,
+            "color": string,
+            "fillColor": string,
+            "lineThickness": int,
+            "Notes": string
+        }
+        anns.append(annotation)
+
+    Notes:
+        In case if you want to have different notes per annotation the notes parameter has
+        to be empty and the annotation dictionary should contain a notes key: value pair.
 
     """
 
@@ -1976,4 +1992,3 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
 
     return r.text
 
-# test_2
