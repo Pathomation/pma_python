@@ -14,9 +14,13 @@ import io
 import shutil
 import re
 import pandas as pd
-
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
+
+from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel
+from typing import Callable, Optional, Tuple
+
+ProgressCallback = Callable[[int, int], None]
 
 __version__ = pma.__version__
 
@@ -408,6 +412,7 @@ def get_root_directories(sessionID=None, verify=True):
         "GetRootDirectories?sessionID=" + pma._pma_q((sessionID))
     if pma._pma_debug == True:
         print(url)
+
     r = requests.get(url, verify=verify)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -1545,8 +1550,7 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
     files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
     sessionID = _pma_session_id(target_pma_core_sessionID)
-    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + \
-        pma._pma_q(sessionID)
+    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
 
     mainDirectory = ''
     for i, f in enumerate(files):
@@ -1992,3 +1996,105 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
 
     return r.text
 
+
+async def upload_large_files(
+    *,
+    pma_core_url: str,
+    session_id: str,
+    slide_path: str,
+    upload_directory: str,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> tuple[bool, str | None]:
+
+    if not isinstance(pma_core_url, str) or not pma_core_url.strip():
+        return False, "pma_core_url is empty or not a string"
+
+    if not isinstance(session_id, str) or not session_id.strip():
+        return False, "session_id is empty or not a string"
+
+    if not isinstance(slide_path, str) or not slide_path.strip():
+        return False, "slide_path is empty or not a string"
+
+    if not os.path.isfile(slide_path):
+        return False, f"slide_path does not exist or is not a file: {slide_path}"
+
+    if not isinstance(upload_directory, str) or not upload_directory.strip():
+        return False, "upload_directory is empty or not a string"
+
+    try:
+        client = PmaCoreClient(pma_core_url)
+
+        file_info = os.stat(slide_path)
+        file_name_without_ext = os.path.splitext(os.path.basename(slide_path))[0]
+        additional_files_dir = os.path.join(os.path.dirname(slide_path), file_name_without_ext)
+        additional_files = []
+        if os.path.isdir(additional_files_dir):
+            additional_files = [
+                os.path.join(additional_files_dir, f)
+                for f in os.listdir(additional_files_dir)
+            ]
+        header_files = []
+
+        # Add main slide file
+        header_files.append(UploadFileModel(
+            isMain=True,
+            length=file_info.st_size,
+            path=os.path.basename(slide_path)
+        ))
+
+        # Add supporting files
+        for file in additional_files:
+            additional_file_info = os.stat(file)
+            header_files.append(UploadFileModel(
+                isMain=False,
+                length=additional_file_info.st_size,
+                path=os.path.join(file_name_without_ext, os.path.basename(file)).replace("\\", "/")
+            ))
+
+        header = UploadHeaderModel(
+            path=upload_directory,
+            files=header_files
+        )
+
+        # 4. Send header to server
+        upload_header = await client.upload_header(header, session_id)
+
+        # 5. Upload files
+        for count, f in enumerate(header.files):
+            file_path = os.path.join(os.path.dirname(slide_path), f.path.replace("/", "\\"))
+            with open(file_path, "rb") as stream:
+
+                # Multipart upload (Amazon S3)
+                if upload_header.multipart_files and len(upload_header.multipart_files) == len(header.files):
+                    multipart_info = upload_header.multipart_files[count]
+                    await client.upload_multipart_file_to_s3(
+                        multipart_info,
+                        os.path.join(header.path, f.path),
+                        stream,
+                        session_id
+                    )
+                else:
+                    # Direct upload (Azure, S3 single-part, or File system)
+                    upload_url = None
+                    if upload_header.urls and len(upload_header.urls) == len(header.files):
+                        upload_url = upload_header.urls[count]
+
+                    await client.upload_file(
+                        upload_header.id,
+                        upload_header.upload_type,
+                        upload_url,
+                        f.path,
+                        stream,
+                        session_id,
+                        total_bytes=f.length,
+                        progress_callback=progress_callback,
+                    )
+        # 6. Confirm status
+        await client.get_upload_status(upload_header.id, session_id)
+
+    except Exception as e:
+        return False, str(e)
+    return True, None
+
+def on_progress(bytes_sent, total_bytes):
+    percent = bytes_sent / total_bytes * 100
