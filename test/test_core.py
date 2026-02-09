@@ -1,18 +1,25 @@
+import asyncio
 import unittest
+import tempfile
+import os
 from PIL import Image
 from pma_python import core
-class CoreTest(unittest.TestCase):
+
+class CoreTest(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
-        self.core3 = "https://snapshot.pathomation.com/PMA.core/3.0.3/"
-        self.username = "vitalij"
-        self.password = "PMI9GH9I"
-        self.local_file1 = "C:\\Users\\VitalijVictorPathoma\\Downloads\\part.tif"
+        self.core307 = "https://dev.pathomation.com/core_dev"
+        self.core301 = "https://snapshot.pathomation.com/PMA.core/3.0.1/"
+        self.local_folder = "C:\\slides"
+        self.username = "pma_admin"
+        self.password = "P4th0-M4t!on"
+        self.local_file1 = "C:\\slides\\APPS115_11139_rescan_01.btf"
         self.local_file2 = "C:/Slides/14.svs"
         self.local_file3 = "C:/Slides/CMU-1.mrxs"
-        self.core_file1 = "_sys_aws_s3/alignment/casus001/casus001_HE_1.mrxs"
+        self.core_file1 = "_sys_aws_s3/A_download/part.tif"
         self.core_file2 = "_sys_aws_s3/brightfield/Test_slide_pathomation_admin.svs"
         self.core_file3 = "_sys_aws_s3/2DollarBill.zif"
+        self.core_zarr_file = "_sys_aws_s3/brightfield/OMERO/H2018-1180exp1s2HP-114785-20191111_zarr/METADATA.ome.xml"
         self._pma_pmacoreliteURL = "http://localhost:54001/"
         self.first_n_em_dir = "_sys_aws_s3/annotations"
         self.label_url = "https://snapshot.pathomation.com/PMA.core/3.0.3/barcode?SessionID=NjpybCWmdMJfCTRNdqa7PA2&pathOrUid=_sys_aws_s3%2Falignment%2Fcasus001%2Fcasus001_HE_1.mrxs&w=300&h=150"
@@ -20,12 +27,12 @@ class CoreTest(unittest.TestCase):
         self.thumbnail_url = "https://snapshot.pathomation.com/PMA.core/3.0.3/thumbnail?SessionID=NjpybCWmdMJfCTRNdqa7PA2&pathOrUid=_sys_aws_s3%2Falignment%2Fcasus001%2Fcasus001_HE_1.mrxs&w=150&h=150"
         self.macro_url = 'https://snapshot.pathomation.com/PMA.core/3.0.3/macro?SessionID=NjpybCWmdMJfCTRNdqa7PA2&pathOrUid=_sys_aws_s3%2Falignment%2Fcasus001%2Fcasus001_HE_1.mrxs&w=200&h=200'
         self.tile_url = 'https://snapshot.pathomation.com/PMA.core/3.0.3/tile?sessionID=NjpybCWmdMJfCTRNdqa7PA2&channels=0&timeframe=0&layer=0&pathOrUid=_sys_aws_s3%2Falignment%2Fcasus001%2Fcasus001_HE_1.mrxs&x=10&y=20&z=2&format=png&quality=90&cache=true'
-        self.tmp_upload_dir = "_sys_aws_s3/alignment/X_Set_1"
+        self.tmp_upload_dir = "_sys_aws_s3/alignment/moving"
         self.tmp_download_dir = "C:\\Users\\VitalijVictorPathoma\\Downloads"
-        self.session_id = core.connect(self.core3, self.username, self.password)
+        self.session_id = core.connect(self.core307, self.username, self.password)
 
     def test_check_session_id(self):
-        session_id = core.connect(self.core3, self.username, self.password)
+        session_id = core.connect(self.core307, self.username, self.password)
         print(session_id)
         self.assertIsNotNone(session_id)
 
@@ -34,65 +41,65 @@ class CoreTest(unittest.TestCase):
         print(flag)
         self.assertIsNone(flag)
 
-    def test__pma_session_id(self):
+    def test_pma_session_id(self):
         session_id = core._pma_session_id()
-        self.assertEqual(session_id, core.connect(self.core3, self.username, self.password))
+        self.assertEqual(session_id, core.connect(self.core307, self.username, self.password))
         print(session_id)
 
-    def test__pma_first_session_id(self):
+    def test_pma_first_session_id(self):
         first_session_id = core._pma_first_session_id()
         print(first_session_id)
         self.assertIsNotNone(first_session_id)
 
-    def test__pma_url(self):
+    def test_pma_url(self):
         pma_url = core._pma_url()
         print(pma_url)
-        self.assertEqual(pma_url, self.core3)
+        self.assertEqual(pma_url, self.core307)
 
-    def test__pma_api_url(self):
+    def test_pma_api_url(self):
         api_url = core._pma_api_url()
         print(api_url)
-        self.assertEqual(api_url, self.core3 + "api/json/")
+        self.assertEqual(api_url, self.core307 + "api/json/")
 
     def test__pma_query_url(self):
         query_url = core._pma_query_url()
         print(query_url)
-        self.assertEqual(query_url, self.core3 + "query/json/")
+        self.assertEqual(query_url, self.core307 + "query/json/")
 
-    def test__pma_is_lite(self):
+    def test_pma_is_lite(self):
         lite_URL_bool = core._pma_is_lite(self._pma_pmacoreliteURL)
         print(lite_URL_bool)
         self.assertTrue(True)
 
     def test_get_version_info(self):
-        version = core.get_version_info(self.core3)
+        version = core.get_version_info(self.core307)
         print(version)
         self.assertIsNotNone(version)
 
     def test_get_build_revision(self):
-        revision = core.get_build_revision(self.core3, verify=True)
+        revision = core.get_build_revision(self.core307, verify=True)
         print(revision)
         self.assertIsNotNone(revision)
         self.assertIn("1f204cca", revision)
 
     def test_get_api_version(self):
-        api_version = core.get_api_version(pmacoreURL=self.core3, verify=False)
+        api_version = core.get_api_version(pmacoreURL=self.core307, verify=False)
         print(api_version)
         self.assertIsNotNone(api_version)
         if isinstance(api_version, dict):
             self.assertEquals("[3, 0, 2]", api_version)
 
     def test_get_api_verion_string(self):
-        api_version_string = core.get_api_verion_string(pmacoreURL=self.core3)
+        api_version_string = core.get_api_verion_string(pmacoreURL=self.core307)
         print(api_version_string)
         self.assertIsNotNone(api_version_string)
         self.assertTrue(len(api_version_string) > 0)
         self.assertRegex(api_version_string, r"^\d+(\.\d+)*$")
 
     def test_register_session_id(self):
-        core.register_session_id(self.session_id, self.core3)
+        core.register_session_id(self.session_id, self.core307)
         self.assertIn(self.session_id, core._pma_sessions)
-        self.assertEqual(core._pma_sessions[self.session_id], self.core3)
+        self.assertEqual(core._pma_sessions[self.session_id], self.core307)
         self.assertIn(self.session_id, core._pma_amount_of_data_downloaded)
         self.assertEqual(core._pma_amount_of_data_downloaded[self.session_id], 0)
         self.assertIn(self.session_id, core._pma_slideinfos)
@@ -101,7 +108,7 @@ class CoreTest(unittest.TestCase):
     def test_connect(self):
         self.assertIsNotNone(self.session_id)
         self.assertIn(self.session_id, core._pma_sessions)
-        self.assertEqual(core._pma_sessions[self.session_id], self.core3)
+        self.assertEqual(core._pma_sessions[self.session_id], self.core307)
         self.assertIn(self.session_id, core._pma_usernames)
         self.assertEqual(core._pma_usernames[self.session_id], self.username)
         self.assertIn(self.session_id, core._pma_slideinfos)
@@ -124,7 +131,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     def test_get_directories(self):
-        root_directories = core.get_root_directories(self.session_id)
+        root_directories = core.get_root_directories(self.session_id, False)
         first_directory = root_directories[0]
         directories = core.get_directories(first_directory, self.session_id)
         print(directories)
@@ -136,7 +143,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsNotNone(f_non_em_dir)
 
     def test_get_slides(self):
-        root_directories = core.get_root_directories(self.session_id)
+        root_directories = core.get_root_directories(core.connect(self.core307, self.username, self.password))
         first_directory = root_directories[0]
         slides = core.get_slides(first_directory, self.session_id)
         print(slides)
@@ -173,7 +180,7 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(result, {
         "sessionID": self.session_id,
         "username": "vitalij",
-        "url": self.core3,
+        "url": self.core307,
         "amountOfDataDownloaded": 8
     })
 
@@ -245,7 +252,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsInstance(result, Image.Image)
 
     def test_get_barcode_text(self):
-        result = core.get_barcode_text(self.core_file1, sessionID=self.session_id)
+        result = core.get_barcode_text('_sys_aws_s3/client_slides/ASI/DICOM from Michal/10x_BF_01_0.dcm', sessionID=self.session_id)
         print(result)
         self.assertEqual(result, self.barcode_text)
 
@@ -281,20 +288,20 @@ class CoreTest(unittest.TestCase):
         self.assertIsInstance(result, Image.Image)
 
     def test_get_tile_url(self):
-        result = core.get_tile_url(self.core_file1, x=10, y=20, zoomlevel=2, zstack=0, sessionID=self.session_id,
+        result = core.get_tile_url(self.core_zarr_file, x=10000, y=100020, zoomlevel=2, zstack=0, sessionID=self.session_id,
                                    format="png", quality=90)
         print(result)
         self.assertEqual(result, self.tile_url)
 
     def test_get_tile(self):
-        result = core.get_tile(self.core_file1, x=10, y=20, zoomlevel=2, zstack=0, sessionID=self.session_id,
-                               format="jpg", quality=100)
+        result = core.get_tile(self.core_zarr_file, x=10, y=20, zoomlevel=2, zstack=0, sessionID=self.session_id,
+                               format="png", quality=100)
         print(result)
         self.assertIsInstance(result, Image.Image)
 
     def test_get_region(self):
         result = core.get_region(
-            self.core_file1,
+            self.core_zarr_file,
             x=50,
             y=50,
             width=100,
@@ -345,7 +352,7 @@ class CoreTest(unittest.TestCase):
 
     def test_get_tiles(self):
         tiles = list(
-            core.get_tiles(self.core_file1, fromX=0, fromY=0, toX=2, toY=2, zoomlevel=1, sessionID=self.session_id))
+            core.get_tiles(self.core_zarr_file, fromX=0, fromY=0, toX=2, toY=2, zoomlevel=1, sessionID=self.session_id))
         print(tiles)
         self.assertEqual(len(tiles), 4)
         self.assertIsInstance(tiles[0], Image.Image)
@@ -387,7 +394,7 @@ class CoreTest(unittest.TestCase):
 
     def test_download(self):
         try:
-            core.download(self.core_file1, self.tmp_download_dir, self.session_id)
+            core.download(self.core_file1, self.local_folder, core.connect(self.core307, self.username, self.password))
             print("Download completed successfully.")
         except Exception as e:
             self.fail(f"Download failed: {e}")
@@ -480,6 +487,246 @@ class CoreTest(unittest.TestCase):
         print(result)
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
+
+    # =========================
+    # COMMON SETUP
+    # =========================
+
+    async def asyncSetUp(self):
+        # create fake slide file
+        fd, path = tempfile.mkstemp(suffix=".mrxs")
+        os.write(fd, b"fake data")
+        os.close(fd)
+
+        self.fake_slide_path = path
+
+        self.valid_params = {
+            "pma_core_url": "https://snapshot.pathomation.com/PMA.core_QC",
+            "session_id": "valid_session_id",
+            "slide_path": self.fake_slide_path,
+            "upload_directory": "Amazon_S3/A_download",
+            "progress_callback": None,
+        }
+
+    async def asyncTearDown(self):
+        if os.path.exists(self.fake_slide_path):
+            os.remove(self.fake_slide_path)
+
+    # =========================
+    # VALIDATION TESTS
+    # =========================
+
+    async def test_empty_pma_core_url(self):
+        params = dict(self.valid_params)
+        params["pma_core_url"] = ""
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("pma_core_url", reason)
+
+    async def test_pma_core_url_not_string(self):
+        params = dict(self.valid_params)
+        params["pma_core_url"] = 123
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("pma_core_url", reason)
+
+    async def test_empty_session_id(self):
+        params = dict(self.valid_params)
+        params["session_id"] = ""
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("session_id", reason)
+
+    async def test_session_id_not_string(self):
+        params = dict(self.valid_params)
+        params["session_id"] = None
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("session_id", reason)
+
+    async def test_empty_slide_path(self):
+        params = dict(self.valid_params)
+        params["slide_path"] = ""
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("slide_path", reason)
+
+    async def test_slide_path_not_exists(self):
+        params = dict(self.valid_params)
+        params["slide_path"] = "C:/this/path/does/not/exist.mrxs"
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("does not exist", reason)
+
+    async def test_slide_path_is_directory(self):
+        params = dict(self.valid_params)
+        params["slide_path"] = tempfile.gettempdir()
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("not a file", reason)
+
+    async def test_empty_upload_directory(self):
+        params = dict(self.valid_params)
+        params["upload_directory"] = ""
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("upload_directory", reason)
+
+    async def test_upload_directory_not_string(self):
+        params = dict(self.valid_params)
+        params["upload_directory"] = 42
+
+        ok, reason = await core.large_files_upload_package(**params)
+
+        self.assertFalse(ok)
+        self.assertIn("upload_directory", reason)
+
+    # =========================
+    # SMOKE TEST (VALIDATION PASSES)
+    # =========================
+
+    async def test_validation_passes_until_upload_header(self):
+        async def fake_upload_header(*args, **kwargs):
+            raise RuntimeError("stop after validation")
+
+        # patch method manually (no pytest monkeypatch!)
+        original = core.PmaCoreClient.upload_header
+        core.PmaCoreClient.upload_header = fake_upload_header
+
+        try:
+            ok, reason = await core.large_files_upload_package(**self.valid_params)
+
+            self.assertFalse(ok)
+            self.assertIn("stop after validation", reason)
+        finally:
+            core.PmaCoreClient.upload_header = original
+
+    # SUCCESS TEST
+    async def test_upload_success(self):
+        async def fake_upload_header(*args, **kwargs):
+            class FakeHeader:
+                id = "fake_id"
+                upload_type = "direct"
+                urls = []
+                multipart_files = []
+
+            return FakeHeader()
+
+        async def fake_upload_file(*args, **kwargs):
+            return None
+
+        async def fake_get_upload_status(*args, **kwargs):
+            return True
+
+        # patch
+        orig_upload_header = core.PmaCoreClient.upload_header
+        orig_upload_file = core.PmaCoreClient.upload_file
+        orig_status = core.PmaCoreClient.get_upload_status
+
+        core.PmaCoreClient.upload_header = fake_upload_header
+        core.PmaCoreClient.upload_file = fake_upload_file
+        core.PmaCoreClient.get_upload_status = fake_get_upload_status
+
+        try:
+            ok, reason = await core.large_files_upload_package(**self.valid_params)
+            self.assertTrue(ok)
+            self.assertIsNone(reason)
+        finally:
+            core.PmaCoreClient.upload_header = orig_upload_header
+            core.PmaCoreClient.upload_file = orig_upload_file
+            core.PmaCoreClient.get_upload_status = orig_status
+
+    # PROGRESS CALLBACK TEST
+    async def test_progress_callback_called(self):
+        calls = []
+
+        def progress_cb(ev):
+            calls.append(ev.bytes_sent)
+
+        async def fake_upload_header(*args, **kwargs):
+            class FakeHeader:
+                id = "fake_id"
+                upload_type = "direct"
+                urls = []
+                multipart_files = []
+
+            return FakeHeader()
+
+        async def fake_upload_file(*args, **kwargs):
+            cb = kwargs.get("progress_callback")
+            if cb:
+                cb(type("Ev", (), {
+                    "bytes_sent": 50,
+                    "total_bytes": 100,
+                    "percent": 50.0,
+                    "part_number": 1,
+                    "file_path": "test"
+                })())
+                cb(type("Ev", (), {
+                    "bytes_sent": 100,
+                    "total_bytes": 100,
+                    "percent": 100.0,
+                    "part_number": 1,
+                    "file_path": "test"
+                })())
+
+        async def fake_get_upload_status(*args, **kwargs):
+            return True
+
+        orig_upload_header = core.PmaCoreClient.upload_header
+        orig_upload_file = core.PmaCoreClient.upload_file
+        orig_status = core.PmaCoreClient.get_upload_status
+
+        core.PmaCoreClient.upload_header = fake_upload_header
+        core.PmaCoreClient.upload_file = fake_upload_file
+        core.PmaCoreClient.get_upload_status = fake_get_upload_status
+
+        try:
+            params = dict(self.valid_params)
+            params["progress_callback"] = progress_cb
+
+            ok, _ = await core.large_files_upload_package(**params)
+
+            self.assertTrue(ok)
+            self.assertGreater(len(calls), 0)
+            self.assertEqual(calls[-1], 100)
+        finally:
+            core.PmaCoreClient.upload_header = orig_upload_header
+            core.PmaCoreClient.upload_file = orig_upload_file
+            core.PmaCoreClient.get_upload_status = orig_status
+
+    # CANCEL / TIMEOUT TEST
+    async def test_upload_timeout(self):
+        async def fake_upload_header(*args, **kwargs):
+            await asyncio.sleep(5)  # имитация зависания
+
+        orig_upload_header = core.PmaCoreClient.upload_header
+        core.PmaCoreClient.upload_header = fake_upload_header
+
+        try:
+            with self.assertRaises(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    core.large_files_upload_package(**self.valid_params),
+                    timeout=0.5
+                )
+        finally:
+            core.PmaCoreClient.upload_header = orig_upload_header
 
 
 if __name__ == "__main__":
