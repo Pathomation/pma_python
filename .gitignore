@@ -6,3 +6,4 @@ pma_python\.egg-info/
 venv/
 /samples/
 setup.py
+.idea/
