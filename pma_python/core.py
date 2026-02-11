@@ -6,7 +6,6 @@ from pprint import pprint
 from PIL import Image
 from random import choice
 from io import BytesIO
-from urllib.parse import quote
 from urllib.request import urlopen
 from pma_python import pma
 
@@ -14,14 +13,13 @@ from pma_python import pma
 import os
 import datetime
 import io
-import shutil
 import re
 import pandas as pd
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
-from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel, UploadResponse
-from typing import Callable, Optional, Tuple
+from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel
+from typing import Callable
 
 ProgressCallback = Callable[[int, int], None]
 
@@ -2021,29 +2019,23 @@ async def upload_large_files(
         upload_directory: str,
         progress_callback=None,
 ):
-    """
-    Загружает VSI + весь stack
-    Даёт общий progress по ВСЕМ файлам сразу
-    """
 
-    import os
-
-    # ===== СОБИРАЕМ ВСЕ ФАЙЛЫ =====
+    # ===== GETTING ALL FILES =====
     all_files = []
 
-    # основной VSI
+    # MAIN VSI
     all_files.append(slide_path)
 
     vsi_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
     local_stack_root = os.path.join(os.path.dirname(slide_path), vsi_name_no_ext)
 
-    # stack файлы
+    # stack files
     if os.path.isdir(local_stack_root):
         for root, _, files in os.walk(local_stack_root):
             for f in files:
                 all_files.append(os.path.join(root, f))
 
-    # ===== СЧИТАЕМ ОБЩИЙ РАЗМЕР =====
+    # ===== general size =====
     total_bytes = sum(os.stat(f).st_size for f in all_files)
 
     # ===== GLOBAL TRACKER =====
@@ -2072,7 +2064,6 @@ async def upload_large_files(
 
         return _cb
 
-    # ===== 1️⃣ VSI =====
     ok, err = await large_files_upload_package(
         pma_core_url=pma_core_url,
         session_id=session_id,
@@ -2084,7 +2075,7 @@ async def upload_large_files(
     if not ok:
         return False, f"VSI upload failed: {err}"
 
-    # ===== 2️⃣ STACK =====
+    # ===== STACK =====
     if os.path.isdir(local_stack_root):
 
         for root, _, files in os.walk(local_stack_root):
@@ -2151,7 +2142,7 @@ async def large_files_upload_package(
         print("MultipartFiles:", resp.multipart_files)
         print("Urls:", resp.urls)
 
-        # ===== ⭐ ПРИОРИТЕТ MULTIPART (ВАЖНО) =====
+        # ===== MULTIPART =====
         if resp.multipart_files and len(resp.multipart_files) > 0:
 
             mp = resp.multipart_files[0]
