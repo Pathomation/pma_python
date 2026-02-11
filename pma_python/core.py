@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 from math import ceil
 from pprint import pprint
 from PIL import Image
@@ -14,9 +17,13 @@ import io
 import shutil
 import re
 import pandas as pd
-
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
+
+from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel, UploadResponse
+from typing import Callable, Optional, Tuple
+
+ProgressCallback = Callable[[int, int], None]
 
 __version__ = pma.__version__
 
@@ -335,8 +342,8 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
     post_url = pma._pma_join(
         pmacoreURL, "api/json/authenticate?caller=SDK.Python")
     get_url = post_url + "&username=" + \
-        pma._pma_q(pmacoreUsername) + "&password=" + \
-        pma._pma_q(pmacorePassword)
+              pma._pma_q(pmacoreUsername) + "&password=" + \
+              pma._pma_q(pmacorePassword)
 
     if pma._pma_debug == True:
         print(post_url + "&username=" +
@@ -344,7 +351,7 @@ def connect(pmacoreURL=_pma_pmacoreliteURL, pmacoreUsername="", pmacorePassword=
 
     try:
         r = requests.post(post_url, headers=headers, json={
-                          "username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"},
+            "username": pmacoreUsername, "password": pmacorePassword, "caller": "SDK.Python"},
                           verify=verify)
         if (r.status_code != 200):
             raise Exception("not supported")
@@ -385,7 +392,7 @@ def disconnect(sessionID=None):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + \
-        "DeAuthenticate?sessionID=" + pma._pma_q((sessionID))
+          "DeAuthenticate?sessionID=" + pma._pma_q((sessionID))
     if pma._pma_debug == True:
         print(url)
     contents = urlopen(url).read()
@@ -405,9 +412,10 @@ def get_root_directories(sessionID=None, verify=True):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + \
-        "GetRootDirectories?sessionID=" + pma._pma_q((sessionID))
+          "GetRootDirectories?sessionID=" + pma._pma_q((sessionID))
     if pma._pma_debug == True:
         print(url)
+
     r = requests.get(url, verify=verify)
     json = r.json()
     global _pma_amount_of_data_downloaded
@@ -474,7 +482,7 @@ def get_directories(startDir, sessionID=None, recursive=False, verify=True):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "GetDirectories?sessionID=" + \
-        pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+          pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -563,7 +571,7 @@ def get_slides(startDir, sessionID=None, recursive=False, verify=True):
     if (startDir.startswith("/")):
         startDir = startDir[1:]
     url = _pma_api_url(sessionID) + "GetFiles?sessionID=" + \
-        pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
+          pma._pma_q(sessionID) + "&path=" + pma._pma_q(startDir)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -661,7 +669,7 @@ def get_uid(slideRef, sessionID=None, verify=True):
             )
 
     url = _pma_api_url(sessionID) + "GetUID?sessionID=" + \
-        pma._pma_q(sessionID) + "&path=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&path=" + pma._pma_q(slideRef)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -682,7 +690,7 @@ def get_fingerprint(slideRef, sessionID=None, verify=True):
     """
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + "GetFingerprint?sessionID=" + \
-        pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
     r = requests.get(url, verify=verify)
     json = r.json()
@@ -759,7 +767,7 @@ def get_slide_info(slideRef, sessionID=None, verify=True):
 
     if (not (slideRef in _pma_slideinfos[sessionID])):
         url = _pma_api_url(sessionID) + "GetImageInfo?SessionID=" + \
-            pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+              pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
         if pma._pma_debug == True:
             print(url)
         r = requests.get(url, verify=verify)
@@ -834,7 +842,7 @@ def get_zoomlevels_dict(slideRef, sessionID=None, min_number_of_tiles=0):
     return d
 
 
-def get_pixels_per_micrometer(slideRef, sessionID=None, zoomlevel=None,):
+def get_pixels_per_micrometer(slideRef, sessionID=None, zoomlevel=None, ):
     """
     Retrieve the physical dimension in terms of pixels per micrometer.
     When zoomlevel is left to its default value of None, dimensions at the highest zoomlevel are returned
@@ -847,7 +855,7 @@ def get_pixels_per_micrometer(slideRef, sessionID=None, zoomlevel=None,):
     if (zoomlevel is None or zoomlevel == maxZoomLevel):
         return (float(xppm), float(yppm))
     else:
-        factor = 2**(int(zoomlevel) - int(maxZoomLevel))
+        factor = 2 ** (int(zoomlevel) - int(maxZoomLevel))
         return (float(xppm) / factor, float(yppm) / factor)
 
 
@@ -858,7 +866,7 @@ def get_pixel_dimensions(slideRef, sessionID=None, zoomlevel=None):
     if (zoomlevel is None or zoomlevel == maxZoomLevel):
         return (int(info["Width"]), int(info["Height"]))
     else:
-        factor = 2**(zoomlevel - maxZoomLevel)
+        factor = 2 ** (zoomlevel - maxZoomLevel)
         return (int(info["Width"]) * factor, int(info["Height"]) * factor)
 
 
@@ -967,7 +975,7 @@ def get_barcode_text(slideRef, sessionID=None, verify=True):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetBarcodeText?sessionID=" + \
-        pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -1129,8 +1137,10 @@ def get_tile(slideRef, x=0, y=0, zoomlevel=None, zstack=0, sessionID=None, forma
     return img
 
 
-def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100, rotation=0,
-               contrast=None, brightness=None, postGamma=None, dpi=300, flipVertical=False, flipHorizontal=False, annotationsLayerType=None, drawFilename=0,
+def get_region(slideRef, x=0, y=0, width=0, height=0, scale=1, zstack=0, sessionID=None, format="jpg", quality=100,
+               rotation=0,
+               contrast=None, brightness=None, postGamma=None, dpi=300, flipVertical=False, flipHorizontal=False,
+               annotationsLayerType=None, drawFilename=0,
                downloadInsteadOfDisplay=False, drawScaleBar=False, gamma=[], channelClipping=[], verify=True):
     """
     Gets a region of the slide at the specified scale 
@@ -1192,7 +1202,7 @@ def get_submitted_forms(slideRef, sessionID=None, verify=True):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + \
-        pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
     all_forms = get_available_forms(slideRef, sessionID)
     if pma._pma_debug == True:
         print(url)
@@ -1222,7 +1232,7 @@ def get_submitted_form_data(slideRef, sessionID=None, verify=True):
     if (slideRef.startswith("/")):
         slideRef = slideRef[1:]
     url = _pma_api_url(sessionID) + "GetFormSubmissions?sessionID=" + \
-        pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&pathOrUids=" + pma._pma_q(slideRef)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -1251,10 +1261,10 @@ def get_available_forms(slideRef=None, sessionID=None, verify=True):
             slideRef = slideRef[1:]
         dir = os.path.split(slideRef)[0]
         url = _pma_api_url(sessionID) + "GetForms?sessionID=" + \
-            pma._pma_q(sessionID) + "&path=" + pma._pma_q(dir)
+              pma._pma_q(sessionID) + "&path=" + pma._pma_q(dir)
     else:
         url = _pma_api_url(sessionID) + \
-            "GetForms?sessionID=" + pma._pma_q(sessionID)
+              "GetForms?sessionID=" + pma._pma_q(sessionID)
 
     if pma._pma_debug == True:
         print(url)
@@ -1283,7 +1293,7 @@ def prepare_form_dictionary(formID, sessionID=None, verify=True):
         return None
     sessionID = _pma_session_id(sessionID)
     url = _pma_api_url(sessionID) + \
-        "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
+          "GetFormDefinitions?sessionID=" + pma._pma_q(sessionID)
     if pma._pma_debug == True:
         print(url)
     r = requests.get(url, verify=verify)
@@ -1324,7 +1334,7 @@ def get_annotations(slideRef, sessionID=None, verify=True):
         slideRef = slideRef[1:]
     dir = os.path.split(slideRef)[0]
     url = _pma_api_url(sessionID) + "GetAnnotations?sessionID=" + \
-        pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+          pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
     if pma._pma_debug == True:
         print(url)
 
@@ -1343,7 +1353,8 @@ def get_annotations(slideRef, sessionID=None, verify=True):
     return annotations
 
 
-def export_annotations(slideRef, annotation_source_format=[pma_annotation_source_format_pathomation], annotation_target_format=pma_annotation_target_format_xml, sessionID=None, verify=True):
+def export_annotations(slideRef, annotation_source_format=[pma_annotation_source_format_pathomation],
+                       annotation_target_format=pma_annotation_target_format_xml, sessionID=None, verify=True):
     """
     Retrieve the annotations for slide slideRef
     """
@@ -1417,7 +1428,7 @@ def show_slide(slideRef, sessionID=None):
 
     if (sessionID == _pma_pmacoreliteSessionID):
         url = "http://localhost:54001/app?path=" + \
-            pma._pma_q(slideRef)
+              pma._pma_q(slideRef)
     else:
         url = _pma_url(sessionID)
         if url is None:
@@ -1426,7 +1437,7 @@ def show_slide(slideRef, sessionID=None):
         else:
             poUid = "&pathOrUid=" if os.name == "posix" else "^&pathOrUid="
             url += "viewer/index.htm" + "?sessionID=" + \
-                pma._pma_q(sessionID) + poUid + pma._pma_q(slideRef)
+                   pma._pma_q(sessionID) + poUid + pma._pma_q(slideRef)
 
     if (pma._pma_debug == True):
         print(url)
@@ -1448,7 +1459,7 @@ def get_files_for_slide(slideRef, sessionID=None, verify=True):
             sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
     else:
         url = _pma_api_url(sessionID) + "getfilenames?sessionID=" + \
-            pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
+              pma._pma_q(sessionID) + "&pathOrUid=" + pma._pma_q(slideRef)
 
     if pma._pma_debug == True:
         print(url)
@@ -1510,7 +1521,8 @@ def search_slides(startDir, pattern, sessionID=None, verify=True):
 
 def _pma_upload_callback(monitor, filename):
     v = monitor.bytes_read / monitor.len
-    if not monitor.previous or v - monitor.previous > 0.05 or (v - monitor.previous > 0 and monitor.bytes_read == monitor.len):
+    if not monitor.previous or v - monitor.previous > 0.05 or (
+            v - monitor.previous > 0 and monitor.bytes_read == monitor.len):
         print("{0:.0%}".format(monitor.bytes_read / monitor.len))
         monitor.previous = v
 
@@ -1545,8 +1557,7 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
 
     files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
     sessionID = _pma_session_id(target_pma_core_sessionID)
-    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + \
-        pma._pma_q(sessionID)
+    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
 
     mainDirectory = ''
     for i, f in enumerate(files):
@@ -1593,14 +1604,17 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         if callback is True:
             print("Uploading file: {0}".format(e.fields["file"][0]))
             if not isAmazonUpload:
-                def _callback(x): return _pma_upload_callback(
-                    monitor, e.fields["file"][0])
+                def _callback(x):
+                    return _pma_upload_callback(
+                        monitor, e.fields["file"][0])
             else:
-                def _callback(bytes_read, total_size, previous): return _pma_upload_amazon_callback(
-                    bytes_read, total_size, previous, e.fields["file"][0])
+                def _callback(bytes_read, total_size, previous):
+                    return _pma_upload_amazon_callback(
+                        bytes_read, total_size, previous, e.fields["file"][0])
         elif callable(callback):
-            def _callback(x): return callback(
-                x.bytes_read, x.len, x.previous, e.fields["file"][0])
+            def _callback(x):
+                return callback(
+                    x.bytes_read, x.len, x.previous, e.fields["file"][0])
 
         monitor = MultipartEncoderMonitor(e, _callback)
 
@@ -1609,7 +1623,7 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
         r = None
         if not isAmazonUpload:
             r = requests.post(uploadUrl, data=monitor, headers={
-                              'Content-Type': monitor.content_type},
+                'Content-Type': monitor.content_type},
                               verify=verify)
         else:
             headers = {'Content-Length': str(f["Length"])}
@@ -1625,11 +1639,12 @@ def upload(local_source_slide, target_folder, target_pma_core_sessionID, callbac
                 f["Path"], uploadUrl, r.status_code, r.text))
 
         uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
-                                              + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID), verify=verify)
+                                              + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID),
+                                              verify=verify)
         if uploadFinalizeResponse.status_code < 200 or uploadFinalizeResponse.status_code >= 300:
             print(uploadFinalizeResponse.json())
             raise Exception(uploadFinalizeResponse.json()[
-                            "Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
+                                "Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
 
 
 class UploadChunksIterator:
@@ -1668,13 +1683,14 @@ def download(slideRef, save_directory=None, sessionID=None, verify=True):
         :param str save_directory: The local directory to save the downloaded files to
         :param str sessionID: The sessionID to authenticate to the pma.core server
     """
+
     def get_filename_from_cd(cd):
         """
         Get filename from content-disposition
         """
         if not cd:
             return None
-        fname = re.findall('filename=(\S+)', cd)
+        fname = re.findall('filename=(\\S+)', cd)
         if len(fname) == 0:
             return None
         return fname[0].strip(";")
@@ -1734,7 +1750,7 @@ def dummy_annotation():
     """
     return {"classification": "",
             "notes": "",
-            "geometry": "",    # shapely?
+            "geometry": "",  # shapely?
             "color": "#000000",
             "fillColor": "#FFFFFF00",
             "lineThickness": 1}
@@ -1801,6 +1817,7 @@ def add_annotation(slideRef, classification, notes, ann, color="#000000", layerI
         return {'Code': 'Success', 'Message': 'Annotation successfully added', 'annotation_id': r.json()}
     else:
         return r.json()
+
 
 def add_annotations(slideRef, classification, notes, anns, color="#000000", layerID=0, sessionID=None, verify=True):
     """Adds multiple annotations to a slide with the specified parameters
@@ -1992,3 +2009,200 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
 
     return r.text
 
+
+#********************************#
+#   === Large Files Uploader === #
+#********************************#
+async def upload_large_files(
+        *,
+        pma_core_url: str,
+        session_id: str,
+        slide_path: str,
+        upload_directory: str,
+        progress_callback=None,
+):
+    """
+    Загружает VSI + весь stack
+    Даёт общий progress по ВСЕМ файлам сразу
+    """
+
+    import os
+
+    # ===== СОБИРАЕМ ВСЕ ФАЙЛЫ =====
+    all_files = []
+
+    # основной VSI
+    all_files.append(slide_path)
+
+    vsi_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
+    local_stack_root = os.path.join(os.path.dirname(slide_path), vsi_name_no_ext)
+
+    # stack файлы
+    if os.path.isdir(local_stack_root):
+        for root, _, files in os.walk(local_stack_root):
+            for f in files:
+                all_files.append(os.path.join(root, f))
+
+    # ===== СЧИТАЕМ ОБЩИЙ РАЗМЕР =====
+    total_bytes = sum(os.stat(f).st_size for f in all_files)
+
+    # ===== GLOBAL TRACKER =====
+    class GlobalProgressTracker:
+        def __init__(self, total_bytes, callback):
+            self.total_bytes = total_bytes
+            self.callback = callback
+            self.sent_total = 0
+
+        def add(self, delta):
+            self.sent_total += delta
+            if self.callback and self.total_bytes > 0:
+                self.callback(self.sent_total, self.total_bytes)
+
+    tracker = GlobalProgressTracker(total_bytes, progress_callback)
+
+    # ===== FILE CALLBACK WRAPPER =====
+    def make_file_cb():
+        last_sent = 0
+
+        def _cb(sent, total):
+            nonlocal last_sent
+            delta = sent - last_sent
+            last_sent = sent
+            tracker.add(delta)
+
+        return _cb
+
+    # ===== 1️⃣ VSI =====
+    ok, err = await large_files_upload_package(
+        pma_core_url=pma_core_url,
+        session_id=session_id,
+        slide_path=slide_path,
+        upload_directory=upload_directory,
+        progress_callback=make_file_cb()
+    )
+
+    if not ok:
+        return False, f"VSI upload failed: {err}"
+
+    # ===== 2️⃣ STACK =====
+    if os.path.isdir(local_stack_root):
+
+        for root, _, files in os.walk(local_stack_root):
+
+            for file_name in files:
+
+                local_file = os.path.join(root, file_name)
+
+                rel_inside_stack = os.path.relpath(
+                    local_file,
+                    local_stack_root
+                ).replace("\\", "/")
+
+                remote_dir = f"{upload_directory}/{vsi_name_no_ext}/{os.path.dirname(rel_inside_stack)}"
+                remote_dir = remote_dir.rstrip("/")
+
+                ok, err = await large_files_upload_package(
+                    pma_core_url=pma_core_url,
+                    session_id=session_id,
+                    slide_path=local_file,
+                    upload_directory=remote_dir,
+                    progress_callback=make_file_cb()
+                )
+
+                if not ok:
+                    return False, f"Stack upload failed: {local_file} -> {err}"
+
+    return True, None
+
+async def large_files_upload_package(
+        *,
+        pma_core_url: str,
+        session_id: str,
+        slide_path: str,
+        upload_directory: str,
+        progress_callback=None,
+) -> tuple[bool, str | None]:
+    try:
+        client = PmaCoreClient(pma_core_url)
+        print("trust_env:", client.session.trust_env)
+
+        if not os.path.isfile(slide_path):
+            return False, f"File not found: {slide_path}"
+
+        file_size = os.stat(slide_path).st_size
+        file_name = os.path.basename(slide_path)
+
+        # ===== HEADER =====
+        header = UploadHeaderModel(
+            path=upload_directory,
+            files=[
+                UploadFileModel(
+                    isMain=True,
+                    length=file_size,
+                    path=file_name
+                )
+            ]
+        )
+
+        # ===== SEND HEADER =====
+        resp = await client.upload_header(header, session_id)
+
+        print("UploadType:", resp.upload_type)
+        print("MultipartFiles:", resp.multipart_files)
+        print("Urls:", resp.urls)
+
+        # ===== ⭐ ПРИОРИТЕТ MULTIPART (ВАЖНО) =====
+        if resp.multipart_files and len(resp.multipart_files) > 0:
+
+            mp = resp.multipart_files[0]
+
+            full_virtual_path = (
+                    header.path.rstrip("/") + "/" + mp.file_path.lstrip("/")
+            )
+
+            with open(slide_path, "rb") as stream:
+
+                await client.upload_multipart_file_to_s3(
+                    mp,
+                    full_virtual_path,
+                    stream,
+                    session_id,
+                    progress_callback=progress_callback
+                )
+
+        # ===== SINGLE PUT =====
+        else:
+
+            upload_url = resp.urls[0] if resp.urls else None
+
+            with open(slide_path, "rb") as stream:
+
+                await client.upload_file(
+                    resp.id,
+                    resp.upload_type,
+                    upload_url,
+                    file_name,
+                    stream,
+                    session_id,
+                    total_bytes=file_size,
+                    progress_callback=progress_callback
+                )
+
+        # ===== STATUS =====
+        for _ in range(12):
+            st = await client.get_upload_status(resp.id, session_id)
+
+            if '"Complete": true' in st or '"Complete" : true' in st:
+                return True, None
+
+            await asyncio.sleep(10)
+
+        return False, "Upload not completed"
+
+    except Exception as e:
+        return False, str(e)
+
+# callback for large files upload
+def on_progress(bytes_sent, total_bytes):
+    percent = bytes_sent / total_bytes * 100
+    print(f"Upload progress: {percent:.2f}%")
