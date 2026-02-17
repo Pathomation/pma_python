@@ -18,7 +18,7 @@ import pandas as pd
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
-from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel
+from .pma_core_client import PmaCoreClient, UploadHeaderModel, UploadFileModel, UploadResponse
 from typing import Callable
 
 ProgressCallback = Callable[[int, int], None]
@@ -2073,7 +2073,7 @@ async def upload_large_files(
     )
 
     if not ok:
-        return False, f"VSI upload failed: {err}"
+        return False, f"Upload failed: {err}"
 
     # ===== STACK =====
     if os.path.isdir(local_stack_root):
@@ -2142,7 +2142,7 @@ async def large_files_upload_package(
         print("MultipartFiles:", resp.multipart_files)
         print("Urls:", resp.urls)
 
-        # ===== MULTIPART =====
+        # ===== MULTIPART ONLY IF SERVER SENT PARTS =====
         if resp.multipart_files and len(resp.multipart_files) > 0:
 
             mp = resp.multipart_files[0]
@@ -2152,7 +2152,6 @@ async def large_files_upload_package(
             )
 
             with open(slide_path, "rb") as stream:
-
                 await client.upload_multipart_file_to_s3(
                     mp,
                     full_virtual_path,
@@ -2161,13 +2160,12 @@ async def large_files_upload_package(
                     progress_callback=progress_callback
                 )
 
-        # ===== SINGLE PUT =====
+        # ===== SINGLE PUT / AZURE / FILESYSTEM =====
         else:
 
             upload_url = resp.urls[0] if resp.urls else None
 
             with open(slide_path, "rb") as stream:
-
                 await client.upload_file(
                     resp.id,
                     resp.upload_type,

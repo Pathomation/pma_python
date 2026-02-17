@@ -209,8 +209,13 @@ class PmaCoreClient:
                           total_bytes: int | None = None,
                           progress_callback: UploadProgressCallback | None = None):
 
-        if upload_type == "Azure":
-            await self.upload_file_to_azure(upload_url, stream)
+        if upload_type == "Azure" or upload_type == 2:
+            await self.upload_file_to_azure(
+                upload_url,
+                stream,
+                total_bytes=total_bytes,
+                progress_callback=progress_callback,
+            )
             return
 
         upload_to_presigned = bool(upload_url)
@@ -299,9 +304,21 @@ class PmaCoreClient:
         )
         response.raise_for_status()
 
-    async def upload_file_to_azure(self, upload_url: str, stream: IO):
+    async def upload_file_to_azure(
+            self,
+            upload_url: str,
+            stream: IO,
+            total_bytes: int | None = None,
+            progress_callback: UploadProgressCallback | None = None,
+    ):
         block_ids: List[str] = []
-        await self.upload_blocks_to_azure(block_ids, upload_url, stream)
+        await self.upload_blocks_to_azure(
+            block_ids,
+            upload_url,
+            stream,
+            total_bytes=total_bytes,
+            progress_callback=progress_callback,
+        )
         headers = {
             'x-ms-blob-content-type': 'application/octet-stream',
             'Connection': 'Keep-Alive',
@@ -321,10 +338,17 @@ class PmaCoreClient:
         response = requests.put(commit_url, data=body, headers=headers)
         response.raise_for_status()
 
-    async def upload_blocks_to_azure(self, block_ids: List[str], upload_url: str, stream: IO):
+    async def upload_blocks_to_azure(
+            self,
+            block_ids: List[str],
+            upload_url: str,
+            stream: IO,
+            total_bytes: int | None = None,
+            progress_callback: UploadProgressCallback | None = None,
+    ):
         block_size = 4 * 1024 * 1024  # 4MB как в Java
         block_id = 0
-
+        sent_total = 0
         # если в upload_url есть пробелы/и т.п.
         safe_base = upload_url.replace(" ", "%20")
 
@@ -332,6 +356,10 @@ class PmaCoreClient:
             chunk = stream.read(block_size)
             if not chunk:
                 break
+
+            sent_total += len(chunk)
+            if progress_callback and total_bytes:
+                progress_callback(sent_total, total_bytes)
 
             plain = (f"block_{block_id:06d}").encode("utf-8")
             import base64
