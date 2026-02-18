@@ -1911,7 +1911,8 @@ async def upload(
 
     Automatically:
     - calculates full slide size (file + folder + nested files)
-    - chooses upload strategy
+    - detects server upload type
+    - routes upload to legacy transfer or large file uploader
     """
 
     if not os.path.isfile(slide_path):
@@ -1925,7 +1926,7 @@ async def upload(
     # main file size
     total_size += os.stat(slide_path).st_size
 
-    # possible slide folder (MRXS / VSI)
+    # possible slide folder (multi-files slides)
     slide_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
     slide_dir = os.path.join(os.path.dirname(slide_path), slide_name_no_ext)
 
@@ -1937,48 +1938,83 @@ async def upload(
     print("Total slide size:", round(total_size / (1024 ** 3), 2), "GB")
 
     # ================================
-    # ROUTING
+    # CHECK UPLOAD TYPE (PRE-FLIGHT)
     # ================================
-    if total_size < FIVE_GB:
 
-        print("Using SMALL file uploader")
+    try:
+        client = PmaCoreClient(pma_core_url)
 
-        return upload_file_under_5gb(
-            session_id=session_id,
-            slide_path=slide_path,
-            upload_directory=upload_directory,
-            progress_callback=progress_callback
+        file_size = os.stat(slide_path).st_size
+        file_name = os.path.basename(slide_path)
+
+        header = UploadHeaderModel(
+            path=upload_directory,
+            files=[
+                UploadFileModel(
+                    isMain=True,
+                    length=file_size,
+                    path=file_name
+                )
+            ]
         )
 
-    else:
+        resp = await client.upload_header(header, session_id)
 
-        print("Using LARGE file uploader")
+        print("Detected UploadType:", resp.upload_type)
 
-        return await upload_file_over_5gb(
-            pma_core_url=pma_core_url,
-            session_id=session_id,
-            slide_path=slide_path,
-            upload_directory=upload_directory,
-            progress_callback=progress_callback
-        )
+        # ================================
+        # ROUTING LOGIC
+        # ================================
+
+        # UploadType 0 → always small uploader
+        if resp.upload_type == 0:
+            print("UploadType 0 → forcing SMALL uploader")
+
+            return upload_legacy(
+                session_id=session_id,
+                slide_path=slide_path,
+                upload_directory=upload_directory,
+                progress_callback=progress_callback
+            )
+
+        # Otherwise fallback to size logic
+        if total_size < FIVE_GB:
+            print("Using SMALL file uploader")
+
+            return upload_legacy(
+                session_id=session_id,
+                slide_path=slide_path,
+                upload_directory=upload_directory,
+                progress_callback=progress_callback
+            )
+
+        else:
+            print("Using LARGE file uploader")
+
+            return await upload_file_over_5gb(
+                pma_core_url=pma_core_url,
+                session_id=session_id,
+                slide_path=slide_path,
+                upload_directory=upload_directory,
+                progress_callback=progress_callback
+            )
+
+    except Exception as e:
+        return False, str(e)
 
 # **************************************#
 #   === Small Files < 5bg Uploader  === #
 # **************************************#
-def upload_file_under_5gb(slide_path, upload_directory, session_id, progress_callback=None, verify=True):
+def upload_legacy(slide_path, upload_directory, session_id, progress_callback=None, verify=True):
     """
-        Uploads a slide to a PMA.core server. Requires a PMA.start installation
-        :param str slide_path: The local PMA.start relative file to upload
-        :param str upload_directory: The root directory and path to upload to the PMA.core server
-        :param str session_id: A valid session id for a PMA.core server
-        :param function|boolean progress_callback: If True a default progress will be printed.
-               If a function is passed it will be called for progress on each file upload.
-               The function has the following signature:
-                        `callback(bytes_read, bytes_length, filename)`
+    Synchronous upload implementation using direct HTTP requests.
+
+    Handles:
+    - filesystem uploads (any file size when UploadType == 0)
+    - non-chunked cloud uploads
+    - single-file and multi-file slides (MRXS, VSI, etc.)
+    - global progress aggregation across all uploaded files
     """
-    if not _pma_is_lite():
-        raise Exception(
-            "No PMA.start found on localhost. Are you sure it is running?")
 
     if not upload_directory:
         raise ValueError("target_folder cannot be empty")
@@ -2115,6 +2151,15 @@ async def upload_file_over_5gb(
         upload_directory: str,
         progress_callback=None,
 ):
+    """
+    Asynchronous large-file upload implementation using PmaCoreClient.
+
+    Handles:
+    - chunked cloud uploads
+    - multi-file slide stacks
+    - global progress tracking across all uploaded files
+    """
+
     # ===== GETTING ALL FILES =====
     all_files = []
 
@@ -2208,6 +2253,15 @@ async def large_files_upload_package(
         upload_directory: str,
         progress_callback=None,
 ) -> tuple[bool, str | None]:
+    """
+    Low-level async upload routine for a single file.
+
+    Performs:
+    - upload header request
+    - multipart or direct upload
+    - upload completion polling
+    """
+
     try:
         client = PmaCoreClient(pma_core_url)
         print("trust_env:", client.session.trust_env)
@@ -2233,7 +2287,7 @@ async def large_files_upload_package(
         # ===== SEND HEADER =====
         resp = await client.upload_header(header, session_id)
 
-        print("UploadType:", resp.upload_type)
+        # print("UploadType:", resp.upload_type)
         print("MultipartFiles:", resp.multipart_files)
         print("Urls:", resp.urls)
 
@@ -2289,5 +2343,11 @@ async def large_files_upload_package(
 
 # callback for large files upload
 def on_progress(bytes_sent, total_bytes):
+    """
+    Default progress callback.
+
+    Prints upload percentage based on transferred bytes.
+    """
+
     percent = bytes_sent / total_bytes * 100
     print(f"Upload progress: {percent:.2f}%")

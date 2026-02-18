@@ -11,12 +11,10 @@ from urllib3.poolmanager import PoolManager
 
 
 UploadProgressCallback = Callable[[int, int], None]
-# args: bytes_sent, total_bytes
 
 class TLS12HttpAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
         ctx = ssl.create_default_context()
-        # Принудительно TLS 1.2 (часто лечит EOF на прокси/антивирусе)
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.maximum_version = ssl.TLSVersion.TLSv1_2
 
@@ -176,11 +174,9 @@ class PmaCoreClient:
         if not self.server_url.endswith('/'):
             self.server_url += '/'
 
-        # --- FIX: не использовать proxy/SSL-intercept из окружения ---
         self.session = requests.Session()
-        self.session.trust_env = False  # <- ключевое: игнорировать HTTP(S)_PROXY и т.п.
+        self.session.trust_env = False
         self.session.mount("https://", TLS12HttpAdapter())
-
 
     def authenticate(self, username: str, password: str, caller: str) -> AuthenticateResponse:
         service_url = urljoin(self.server_url, 'api/json/Authenticate')
@@ -253,11 +249,9 @@ class PmaCoreClient:
 
             return
 
-        # upload через сервер (multipart form)
         url = f"{self.server_url}transfer/Upload/{upload_id}"
         params = {"sessionId": session_id, "path": relative_path}
 
-        # важно: wrapped передаём как file handle в files
         files = {"file": (relative_path.split("/")[-1], wrapped, "application/octet-stream")}
         response = await asyncio.to_thread(
             requests.post,
@@ -290,7 +284,7 @@ class PmaCoreClient:
         params = {'sessionId': session_id}
         payload = {
             "FilePath": relative_path,
-            "UploadId": multipart_info.upload_id,  # см. пункт 6 ниже
+            "UploadId": multipart_info.upload_id,
             "Parts": [{"PartNumber": p.PartNumber, "ETag": p.ETag} for p in e_tags],
         }
         headers = {'Content-Type': 'application/json'}
@@ -346,10 +340,9 @@ class PmaCoreClient:
             total_bytes: int | None = None,
             progress_callback: UploadProgressCallback | None = None,
     ):
-        block_size = 4 * 1024 * 1024  # 4MB как в Java
+        block_size = 4 * 1024 * 1024
         block_id = 0
         sent_total = 0
-        # если в upload_url есть пробелы/и т.п.
         safe_base = upload_url.replace(" ", "%20")
 
         while True:
@@ -364,18 +357,12 @@ class PmaCoreClient:
             plain = (f"block_{block_id:06d}").encode("utf-8")
             import base64
             base64_block_id = base64.b64encode(plain).decode("utf-8")
-
-            # ВАЖНО: blockid обязательно URL-encode
             encoded_block_id = quote(base64_block_id, safe="")
-
             block_upload_url = f"{safe_base}&comp=block&blockid={encoded_block_id}"
 
-            # Для block PUT не надо x-ms-blob-type (особенно если URL — SAS)
             headers = {
                 "Connection": "Keep-Alive",
                 "Keep-Alive": "3600",
-                # при необходимости можно добавить x-ms-version, если требует аккаунт:
-                # "x-ms-version": "2020-10-02",
             }
 
             response = await asyncio.to_thread(
@@ -386,7 +373,7 @@ class PmaCoreClient:
             )
             response.raise_for_status()
 
-            block_ids.append(base64_block_id)  # В список блоков кладём original base64 id (как в Java)
+            block_ids.append(base64_block_id)
             block_id += 1
 
     def _iter_file_range(self, stream: IO, start: int, length: int, buf_size: int = 8 * 1024 * 1024):
