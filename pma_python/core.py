@@ -1532,119 +1532,6 @@ def _pma_upload_amazon_callback(bytes_read, total_size, previous, filename):
         return v
 
 
-def upload(local_source_slide, target_folder, target_pma_core_sessionID, callback=None, verify=True):
-    """
-        Uploads a slide to a PMA.core server. Requires a PMA.start installation
-        :param str local_source_slide: The local PMA.start relative file to upload
-        :param str target_folder: The root directory and path to upload to the PMA.core server
-        :param str target_pma_core_sessionID: A valid session id for a PMA.core server
-        :param function|boolean callback: If True a default progress will be printed.
-               If a function is passed it will be called for progress on each file upload.
-               The function has the following signature:
-                        `callback(bytes_read, bytes_length, filename)`
-    """
-    if not _pma_is_lite():
-        raise Exception(
-            "No PMA.start found on localhost. Are you sure it is running?")
-
-    if not target_folder:
-        raise ValueError("target_folder cannot be empty")
-
-    if (target_folder.startswith("/")):
-        target_folder = target_folder[1:]
-
-    files = get_files_for_slide(local_source_slide, _pma_pmacoreliteSessionID)
-    sessionID = _pma_session_id(target_pma_core_sessionID)
-    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
-
-    mainDirectory = ''
-    for i, f in enumerate(files):
-        md = os.path.dirname(f)
-        if i == 0 or len(md) < len(mainDirectory):
-            mainDirectory = md
-
-    uploadFiles = []
-    for i, filepath in enumerate(files):
-        s = os.path.getsize(filepath)
-        if s > 0:
-            uploadFiles.append({
-                "Path": filepath.replace(mainDirectory, '').strip("\\").strip('/'),
-                "Length": s,
-                "IsMain": i == len(files) - 1,
-                "FullPath": filepath
-            })
-
-    data = {"Path": target_folder, "Files": uploadFiles}
-
-    uploadHeaderResponse = requests.post(url, json=data, verify=verify)
-    if not uploadHeaderResponse.status_code == 200:
-        print(uploadHeaderResponse.json())
-        raise Exception(uploadHeaderResponse.json()["Message"])
-
-    uploadHeader = uploadHeaderResponse.json()
-
-    pmaCoreUploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(
-        uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID) + "&path={0}"
-
-    isAmazonUpload = True
-    if not uploadHeader['Urls']:
-        isAmazonUpload = False
-        uploadHeader['Urls'] = [pmaCoreUploadUrl.format(
-            f["Path"]) for f in uploadFiles]
-
-    for i, f in enumerate(uploadFiles):
-        uploadUrl = uploadHeader['Urls'][i]
-
-        e = MultipartEncoder(
-            fields={"file": (os.path.basename(f["Path"]), open(f["FullPath"], 'rb'), 'application/octet-stream')})
-
-        _callback = None
-        if callback is True:
-            print("Uploading file: {0}".format(e.fields["file"][0]))
-            if not isAmazonUpload:
-                def _callback(x):
-                    return _pma_upload_callback(
-                        monitor, e.fields["file"][0])
-            else:
-                def _callback(bytes_read, total_size, previous):
-                    return _pma_upload_amazon_callback(
-                        bytes_read, total_size, previous, e.fields["file"][0])
-        elif callable(callback):
-            def _callback(x):
-                return callback(
-                    x.bytes_read, x.len, x.previous, e.fields["file"][0])
-
-        monitor = MultipartEncoderMonitor(e, _callback)
-
-        monitor.previous = 0
-
-        r = None
-        if not isAmazonUpload:
-            r = requests.post(uploadUrl, data=monitor, headers={
-                'Content-Type': monitor.content_type},
-                              verify=verify)
-        else:
-            headers = {'Content-Length': str(f["Length"])}
-            if uploadHeader['UploadType'] == 2:
-                headers = {
-                    'Content-Length': str(f["Length"]), 'x-ms-blob-type': 'BlockBlob'}
-
-            r = requests.put(uploadUrl, data=UploadChunksIterator(
-                open(f["FullPath"], 'rb'), f["Path"], f["Length"], _callback), headers=headers, verify=verify)
-
-        if r.status_code < 200 or r.status_code >= 300:
-            raise Exception("Error uploading file {0}: {1} \r\n{2}: {3}".format(
-                f["Path"], uploadUrl, r.status_code, r.text))
-
-        uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
-                                              + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID),
-                                              verify=verify)
-        if uploadFinalizeResponse.status_code < 200 or uploadFinalizeResponse.status_code >= 300:
-            print(uploadFinalizeResponse.json())
-            raise Exception(uploadFinalizeResponse.json()[
-                                "Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
-
-
 class UploadChunksIterator:
     def __init__(self, file: io.BufferedReader, filename, total_size: int, callback, chunk_size: int = 16 * 1024):
         self.file = file
@@ -1663,11 +1550,10 @@ class UploadChunksIterator:
 
         if not data:
             raise StopIteration
-        self.bytes_read += self.chunk_size
-        if self.callback is not None:
-            v = self.callback(self.bytes_read, self.total_size, self.previous)
-            if v is not None:
-                self.previous = v
+        self.bytes_read += len(data)
+        if self.callback:
+            self.callback(self.bytes_read, self.total_size)
+
         return data
 
     def __len__(self):
@@ -2008,10 +1894,11 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
     return r.text
 
 
-#********************************#
-#   === Large Files Uploader === #
-#********************************#
-async def upload_large_files(
+# **************************************#
+#           === Uploader ===            #
+# **************************************#
+FIVE_GB = 5 * 1024 * 1024 * 1024
+async def upload(
         *,
         pma_core_url: str,
         session_id: str,
@@ -2019,11 +1906,218 @@ async def upload_large_files(
         upload_directory: str,
         progress_callback=None,
 ):
+    """
+    Main upload entry point.
 
+    Automatically:
+    - calculates full slide size (file + folder + nested files)
+    - chooses upload strategy
+    """
+
+    if not os.path.isfile(slide_path):
+        return False, f"File not found: {slide_path}"
+
+    # ================================
+    # CALCULATE TOTAL SLIDE SIZE
+    # ================================
+    total_size = 0
+
+    # main file size
+    total_size += os.stat(slide_path).st_size
+
+    # possible slide folder (MRXS / VSI)
+    slide_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
+    slide_dir = os.path.join(os.path.dirname(slide_path), slide_name_no_ext)
+
+    if os.path.isdir(slide_dir):
+        for root, _, files in os.walk(slide_dir):
+            for f in files:
+                total_size += os.stat(os.path.join(root, f)).st_size
+
+    print("Total slide size:", round(total_size / (1024 ** 3), 2), "GB")
+
+    # ================================
+    # ROUTING
+    # ================================
+    if total_size < FIVE_GB:
+
+        print("Using SMALL file uploader")
+
+        return upload_file_under_5gb(
+            session_id=session_id,
+            slide_path=slide_path,
+            upload_directory=upload_directory,
+            progress_callback=progress_callback
+        )
+
+    else:
+
+        print("Using LARGE file uploader")
+
+        return await upload_file_over_5gb(
+            pma_core_url=pma_core_url,
+            session_id=session_id,
+            slide_path=slide_path,
+            upload_directory=upload_directory,
+            progress_callback=progress_callback
+        )
+
+# **************************************#
+#   === Small Files < 5bg Uploader  === #
+# **************************************#
+def upload_file_under_5gb(slide_path, upload_directory, session_id, progress_callback=None, verify=True):
+    """
+        Uploads a slide to a PMA.core server. Requires a PMA.start installation
+        :param str slide_path: The local PMA.start relative file to upload
+        :param str upload_directory: The root directory and path to upload to the PMA.core server
+        :param str session_id: A valid session id for a PMA.core server
+        :param function|boolean progress_callback: If True a default progress will be printed.
+               If a function is passed it will be called for progress on each file upload.
+               The function has the following signature:
+                        `callback(bytes_read, bytes_length, filename)`
+    """
+    if not _pma_is_lite():
+        raise Exception(
+            "No PMA.start found on localhost. Are you sure it is running?")
+
+    if not upload_directory:
+        raise ValueError("target_folder cannot be empty")
+
+    if (upload_directory.startswith("/")):
+        upload_directory = upload_directory[1:]
+
+    files = get_files_for_slide(slide_path, _pma_pmacoreliteSessionID)
+    sessionID = _pma_session_id(session_id)
+    url = _pma_url(sessionID) + "transfer/Upload?sessionID=" + pma._pma_q(sessionID)
+
+    mainDirectory = ''
+    for i, f in enumerate(files):
+        md = os.path.dirname(f)
+        if i == 0 or len(md) < len(mainDirectory):
+            mainDirectory = md
+
+    uploadFiles = []
+    for i, filepath in enumerate(files):
+        s = os.path.getsize(filepath)
+        if s > 0:
+            uploadFiles.append({
+                "Path": filepath.replace(mainDirectory, '').strip("\\").strip('/'),
+                "Length": s,
+                "IsMain": i == len(files) - 1,
+                "FullPath": filepath
+            })
+            # ==============================
+            # GLOBAL PROGRESS (ALL FILES)
+            # ==============================
+            total_bytes = sum(x["Length"] for x in uploadFiles) if uploadFiles else 0
+            sent_total = 0
+
+            # If the user passed progress_callback=True → enable the default print
+            if progress_callback is True:
+                def progress_callback(sent: int, total: int):
+                    if total > 0:
+                        percent = sent / total * 100
+                        print(f"Upload progress: {percent:.2f}%")
+
+            def report_delta(delta: int):
+                nonlocal sent_total
+                if delta <= 0:
+                    return
+                sent_total += delta
+                if callable(progress_callback) and total_bytes > 0:
+                    if sent_total > total_bytes:
+                        sent_total = total_bytes
+                    progress_callback(sent_total, total_bytes)
+
+    data = {"Path": upload_directory, "Files": uploadFiles}
+
+    uploadHeaderResponse = requests.post(url, json=data, verify=verify)
+    if not uploadHeaderResponse.status_code == 200:
+        print(uploadHeaderResponse.json())
+        raise Exception(uploadHeaderResponse.json()["Message"])
+
+    uploadHeader = uploadHeaderResponse.json()
+
+    pmaCoreUploadUrl = _pma_url(sessionID) + "transfer/Upload/" + pma._pma_q(
+        uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID) + "&path={0}"
+
+    isAmazonUpload = True
+    if not uploadHeader['Urls']:
+        isAmazonUpload = False
+        uploadHeader['Urls'] = [pmaCoreUploadUrl.format(
+            f["Path"]) for f in uploadFiles]
+
+    for i, f in enumerate(uploadFiles):
+        uploadUrl = uploadHeader['Urls'][i]
+
+        e = MultipartEncoder(
+            fields={"file": (os.path.basename(f["Path"]), open(f["FullPath"], 'rb'), 'application/octet-stream')})
+
+        # ==============================
+        # PER-FILE -> GLOBAL PROGRESS
+        # ==============================
+        last_sent = 0
+
+        def monitor_callback(monitor):
+            nonlocal last_sent
+            current = monitor.bytes_read
+            delta = current - last_sent
+            last_sent = current
+            report_delta(delta)
+
+        def iterator_callback(bytes_read, _total_size):
+            nonlocal last_sent
+            current = bytes_read
+            delta = current - last_sent
+            last_sent = current
+            report_delta(delta)
+
+        monitor = MultipartEncoderMonitor(e, monitor_callback)
+
+        monitor.previous = 0
+
+        r = None
+        if not isAmazonUpload:
+            r = requests.post(uploadUrl, data=monitor, headers={
+                'Content-Type': monitor.content_type},
+                              verify=verify)
+        else:
+            headers = {'Content-Length': str(f["Length"])}
+            if uploadHeader['UploadType'] == 2:
+                headers = {
+                    'Content-Length': str(f["Length"]), 'x-ms-blob-type': 'BlockBlob'}
+
+            r = requests.put(uploadUrl, data=UploadChunksIterator(
+                open(f["FullPath"], 'rb'), f["Path"], f["Length"], iterator_callback), headers=headers, verify=verify)
+
+        if r.status_code < 200 or r.status_code >= 300:
+            raise Exception("Error uploading file {0}: {1} \r\n{2}: {3}".format(
+                f["Path"], uploadUrl, r.status_code, r.text))
+
+        uploadFinalizeResponse = requests.get(_pma_url(sessionID) + "transfer/Upload/"
+                                              + pma._pma_q(uploadHeader["Id"]) + "?sessionID=" + pma._pma_q(sessionID),
+                                              verify=verify)
+        if uploadFinalizeResponse.status_code < 200 or uploadFinalizeResponse.status_code >= 300:
+            print(uploadFinalizeResponse.json())
+            raise Exception(uploadFinalizeResponse.json()[
+                                "Message"] + uploadFinalizeResponse.json()["ExceptionMessage"])
+    return True, None
+
+
+# **************************************#
+#   === Large Files > 5gb Uploader === #
+# **************************************#
+async def upload_file_over_5gb(
+        *,
+        pma_core_url: str,
+        session_id: str,
+        slide_path: str,
+        upload_directory: str,
+        progress_callback=None,
+):
     # ===== GETTING ALL FILES =====
     all_files = []
 
-    # MAIN VSI
     all_files.append(slide_path)
 
     vsi_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
@@ -2104,6 +2198,7 @@ async def upload_large_files(
                     return False, f"Stack upload failed: {local_file} -> {err}"
 
     return True, None
+
 
 async def large_files_upload_package(
         *,
@@ -2190,6 +2285,7 @@ async def large_files_upload_package(
 
     except Exception as e:
         return False, str(e)
+
 
 # callback for large files upload
 def on_progress(bytes_sent, total_bytes):
