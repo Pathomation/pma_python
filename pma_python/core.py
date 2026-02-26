@@ -599,6 +599,7 @@ def analyse_corresponding_slides(sessionPathDict, recursive=False, includeFinger
     """
     Return a pandas DataFrame that indicates which slides exist on which PMA.core instances
     :param dict sessionPathDict: a dictionary that looks e.g. like
+
            {DevSessionID: rootDirAndPath1, ProdSessionID: rootDirAndPath2 }
     :param bool recursive: indicates whether the method should look in sub-directories or not
     """
@@ -825,10 +826,12 @@ def get_zoomlevels_dict(slideRef, sessionID=None, min_number_of_tiles=0):
     """
     Obtain a dictionary with the number of tiles per zoomlevel.
     Information is returned as (x, y, n) tuples per zoomlevel, with
+
         x = number of horizontal tiles,
         y = number of vertical tiles,
         n = total number of tiles at specified zoomlevel (x * y)
-    Use min_number_of_tiles argument to specify that you're only interested in zoomlevels that include at lease a given number of tiles
+
+    Use min_number_of_tiles argument to specify that you're only interested in zoomlevels that include at least a given number of tiles
     """
     zoomlevels = list(range(0, get_max_zoomlevel(slideRef, sessionID) + 1))
     dimensions = [
@@ -1728,7 +1731,8 @@ def add_annotations(slideRef, classification, notes, anns, color="#000000", laye
     :return: An integer representing the annotation id
     :rtype: int
 
-    Example:
+    Example::
+
         anns = []
         annotation = {
             "geometry": string,
