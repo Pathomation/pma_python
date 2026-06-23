@@ -1,8 +1,8 @@
 # pma_python
-pma_python is a Python wrapper library for PMA.start (http://free.pathomation.com), 
+pma_python is a Python wrapper library for PMA.core ([https://www.pathomation.com](https://www.pathomation.com)), 
 a universal viewer by Pathomation for whole slide imaging and microscopy.
 
-YOU NEED TO HAVE PMA.START (OR PMA.CORE) RUNNING IN ORDER TO USE THIS
+YOU NEED TO HAVE PMA.core (or PMA.START) RUNNING IN ORDER TO USE THIS
 LIBRARY. PMA_PYTHON IS NOT A STAND-ALONE LIBRARY FOR WSI.
 
 If you're working with
@@ -16,10 +16,10 @@ select those provided for you)
 just wish there was a way to now automatically evaluate it on 
 100s of slides (batch processing)
 
-and you're doing all of this in Python, then PMA.start and 
+and you're doing all of this in Python, then PMA.core (or PMA.start) and 
 pma_python are for you! 
 
-PMA.start can be downloaded free of charge from http://free.pathomation.com
+PMA.start can be downloaded from [https://www.pathomation.com/pmastart](https://www.pathomation.com/pmastart)
 
 With pma_python, you can inspect and navigate any type of 
 microscopic imaging file format available. Whether you have 
@@ -51,7 +51,7 @@ The following vendor formats are currently supported:
 * Perkin Elmer (.qptiff)
 
 The most up to date list with supported file formats can be found at
-http://free.pathomation.com/formats
+[http://www.pathomation.com/formats](https://www.pathomation.com/formats)
 
 ## Installation from source
 To install from pypi
