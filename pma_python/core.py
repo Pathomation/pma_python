@@ -1901,7 +1901,30 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
 # **************************************#
 #           === Uploader ===            #
 # **************************************#
+FOUR_GB = 4 * 1024 * 1024 * 1024
 FIVE_GB = 5 * 1024 * 1024 * 1024
+
+def _get_slide_package_size(slide_path: str) -> tuple[int, int]:
+    """Return total bytes and maximum single-file bytes for a slide package."""
+    total_size = 0
+    max_size = 0
+
+    files = [slide_path]
+    slide_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
+    slide_dir = os.path.join(os.path.dirname(slide_path), slide_name_no_ext)
+
+    if os.path.isdir(slide_dir):
+        for root, _, filenames in os.walk(slide_dir):
+            for filename in filenames:
+                files.append(os.path.join(root, filename))
+
+    for filepath in files:
+        size = os.stat(filepath).st_size
+        total_size += size
+        max_size = max(max_size, size)
+
+    return total_size, max_size
+
 async def upload(
         *,
         pma_core_url: str,
@@ -1925,21 +1948,10 @@ async def upload(
     # ================================
     # CALCULATE TOTAL SLIDE SIZE
     # ================================
-    total_size = 0
-
-    # main file size
-    total_size += os.stat(slide_path).st_size
-
-    # possible slide folder (multi-files slides)
-    slide_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
-    slide_dir = os.path.join(os.path.dirname(slide_path), slide_name_no_ext)
-
-    if os.path.isdir(slide_dir):
-        for root, _, files in os.walk(slide_dir):
-            for f in files:
-                total_size += os.stat(os.path.join(root, f)).st_size
+    total_size, max_file_size = _get_slide_package_size(slide_path)
 
     print("Total slide size:", round(total_size / (1024 ** 3), 2), "GB")
+    print("Largest single file:", round(max_file_size / (1024 ** 3), 2), "GB")
 
     # ================================
     # CHECK UPLOAD TYPE (PRE-FLIGHT)
@@ -1981,8 +1993,8 @@ async def upload(
                 progress_callback=progress_callback
             )
 
-        # Otherwise fallback to size logic
-        if total_size < FIVE_GB:
+        # Otherwise choose based on total package size or safe single-request cap
+        if total_size < FOUR_GB and max_file_size < FIVE_GB:
             print("Using SMALL file uploader")
 
             return upload_legacy(
