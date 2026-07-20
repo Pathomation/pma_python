@@ -24,17 +24,18 @@ def extract_version(v):
 setup(name='pma_python',
       version=extract_version(read("pma_python/version.py")),
       description='Universal viewing of digital microscopy, whole slide imaging and digital pathology data',
-      long_description=read('long_desc.txt'),
+      long_description=read('README.md'),
+      long_description_content_type='text/markdown',
       url='https://github.com/pathomation/pma_python',
       author='Pathomation',
       author_email='info@pathomation.com',
       license='https://www.pathomation.com/contact/',
       packages=['pma_python'],
-      data_files=[('', ['long_desc.txt'])],
+      data_files=[('', ['README.md'])],
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Programming Language :: Python :: 3'],
-      keywords='wsi whole slide imaging gigapixel microscopy histology pathology',
+      keywords='wsi whole slide imaging gigapixel microscopy histology pathology digital pathology pma pma.python pathomation pma.core',
       install_requires=['pandas', 'pillow', 'requests', 'requests_toolbelt'],
       python_requires='>=3',  # assume this only works in Python 3
       zip_safe=False)
