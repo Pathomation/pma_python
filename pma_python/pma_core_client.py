@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 
 import requests
@@ -17,6 +19,9 @@ class TLS12HttpAdapter(HTTPAdapter):
         ctx = ssl.create_default_context()
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+        # Requests may switch cert requirements to CERT_NONE when verify=False.
+        # Keep check_hostname disabled on the context to avoid SSL runtime errors.
+        ctx.check_hostname = False
 
         self.poolmanager = PoolManager(
             num_pools=connections,
@@ -25,6 +30,13 @@ class TLS12HttpAdapter(HTTPAdapter):
             ssl_context=ctx,
             **pool_kwargs
         )
+
+    def cert_verify(self, conn, url, verify, cert):
+        super().cert_verify(conn, url, verify, cert)
+        # urllib3 expects assert_hostname to be False/None/string, not bool True.
+        # False disables hostname checks (verify=False); None means default behavior.
+        if hasattr(conn, "assert_hostname"):
+            conn.assert_hostname = False if not verify else None
 
 class _ProgressStream:
     def __init__(self, raw, total_bytes: int, callback: UploadProgressCallback | None):
@@ -47,6 +59,12 @@ class _ProgressStream:
 
     def tell(self):
         return self.raw.tell()
+
+    def __len__(self):
+        return self.total_bytes
+
+    def close(self):
+        return self.raw.close()
 
 
 # Model classes
@@ -200,12 +218,17 @@ class PmaCoreClient:
         response.raise_for_status()
         return UploadResponse(**response.json())
 
-    async def upload_file(self, upload_id: int, upload_type: Optional[str], upload_url: str,
+    async def upload_file(self, upload_id: int, upload_type: Optional[str], upload_url: Optional[str],
                           relative_path: str, stream: IO, session_id: str,
                           total_bytes: int | None = None,
-                          progress_callback: UploadProgressCallback | None = None):
+                          progress_callback: UploadProgressCallback | None = None,
+                          method: str = "PUT",
+                          verify: bool = True):
 
-        if upload_type == "Azure" or upload_type == 2:
+        normalized_upload_type = str(upload_type).lower() if upload_type is not None else ""
+        if normalized_upload_type in ("azure", "2"):
+            if not upload_url:
+                raise ValueError("Azure upload requires an upload URL")
             await self.upload_file_to_azure(
                 upload_url,
                 stream,
@@ -221,32 +244,29 @@ class PmaCoreClient:
             wrapped = _ProgressStream(stream, total_bytes, progress_callback)
 
         if upload_to_presigned:
-            data = wrapped.read()
-            print("========== DEBUG PRESIGNED ==========")
-            print("upload_url RAW =", upload_url)
-            print("type(upload_url) =", type(upload_url))
-            print("====================================")
+            resolved_method = (method or "PUT").upper()
+            headers = {}
+            if total_bytes is not None:
+                headers["Content-Length"] = str(total_bytes)
 
-            headers = {
-                "Content-Length": str(len(data))
-            }
+            if resolved_method == "POST":
+                files = {"file": (relative_path.split("/")[-1], wrapped, "application/octet-stream")}
+                response = await asyncio.to_thread(
+                    self.session.post,
+                    upload_url,
+                    files=files,
+                    verify=verify
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.session.put,
+                    upload_url,
+                    data=wrapped,
+                    headers=headers,
+                    verify=verify
+                )
 
-            import urllib3
-
-            http = urllib3.PoolManager()
-
-            response = await asyncio.to_thread(
-                http.request,
-                "PUT",
-                upload_url,
-                body=data,
-                headers=headers,
-                preload_content=False
-            )
-
-            if response.status >= 300:
-                raise Exception(f"S3 upload failed: {response.status}")
-
+            response.raise_for_status()
             return
 
         url = f"{self.server_url}transfer/Upload/{upload_id}"
@@ -254,10 +274,11 @@ class PmaCoreClient:
 
         files = {"file": (relative_path.split("/")[-1], wrapped, "application/octet-stream")}
         response = await asyncio.to_thread(
-            requests.post,
+            self.session.post,
             url,
             params=params,
-            files=files
+            files=files,
+            verify=verify
         )
         response.raise_for_status()
 
@@ -340,7 +361,7 @@ class PmaCoreClient:
             total_bytes: int | None = None,
             progress_callback: UploadProgressCallback | None = None,
     ):
-        block_size = 4 * 1024 * 1024
+        block_size = 1024 * 1024 * 1024
         block_id = 0
         sent_total = 0
         safe_base = upload_url.replace(" ", "%20")
@@ -439,8 +460,18 @@ class PmaCoreClient:
 
             response.raise_for_status()
 
-            etag = response.headers.get("ETag", "") or ""
-            etag = etag.strip().strip('"')
+            raw_etag = response.headers.get("ETag")
+            if raw_etag is None:
+                raise ValueError(
+                    f"Multipart part upload succeeded but no ETag header was returned for part {part.PartNumber}."
+                )
+
+            # Some proxies/S3-compatible layers may surface non-string header values.
+            etag = str(raw_etag).strip().strip('"')
+            if not etag:
+                raise ValueError(
+                    f"Multipart part upload succeeded but ETag value was empty for part {part.PartNumber}."
+                )
 
             part_etags.append(
                 PartETagModel(
