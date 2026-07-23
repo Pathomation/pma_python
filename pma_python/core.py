@@ -14,6 +14,7 @@ import os
 import datetime
 import io
 import re
+import traceback
 import pandas as pd
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
@@ -1901,29 +1902,255 @@ def get_annotation_distance(slideRef, layerID, annotationID, sessionID=None, ver
 # **************************************#
 #           === Uploader ===            #
 # **************************************#
-FOUR_GB = 4 * 1024 * 1024 * 1024
-FIVE_GB = 5 * 1024 * 1024 * 1024
+def _normalize_upload_directory(upload_directory: str) -> str:
+    if upload_directory is None:
+        raise ValueError("target_folder cannot be empty")
+    normalized = upload_directory.strip()
+    if normalized == "/":
+        return ""
+    normalized = normalized.lstrip("/")
+    return normalized.rstrip("/")
+
+
+def _join_virtual_path(parent: str, child: str) -> str:
+    parent = (parent or "").strip("/")
+    child = (child or "").lstrip("/")
+    return f"{parent}/{child}" if parent else child
+
+
+def _normalize_upload_type(upload_type):
+    if isinstance(upload_type, str):
+        return upload_type.strip().lower()
+    return upload_type
+
+
+def _is_upload_type(upload_type, *candidates) -> bool:
+    normalized = _normalize_upload_type(upload_type)
+    for candidate in candidates:
+        if isinstance(candidate, str):
+            if normalized == candidate.lower():
+                return True
+        elif normalized == candidate:
+            return True
+    return False
+
+
+def _collect_slide_package_files(slide_path: str):
+    if not os.path.isfile(slide_path):
+        raise ValueError(f"File not found: {slide_path}")
+
+    main_name = os.path.basename(slide_path)
+    child_folder = os.path.splitext(main_name)[0]
+    stack_root = os.path.join(os.path.dirname(slide_path), child_folder)
+
+    package_files = [{
+        "local_path": slide_path,
+        "relative_path": main_name,
+        "is_main": True,
+        "size": os.stat(slide_path).st_size
+    }]
+
+    if os.path.isdir(stack_root):
+        for root, dirnames, filenames in os.walk(stack_root):
+            dirnames.sort()
+            filenames.sort()
+            for filename in filenames:
+                local_path = os.path.join(root, filename)
+                rel_inside_stack = os.path.relpath(local_path, stack_root).replace("\\", "/")
+                package_files.append({
+                    "local_path": local_path,
+                    "relative_path": f"{child_folder}/{rel_inside_stack}",
+                    "is_main": False,
+                    "size": os.stat(local_path).st_size
+                })
+
+    return package_files
+
+
+def _build_upload_urls(server_url: str, session_id: str, upload_id: int, package_files) -> list[str]:
+    base = server_url if server_url.endswith("/") else server_url + "/"
+    encoded_session = pma._pma_q(session_id)
+    urls = []
+    for file in package_files:
+        encoded_path = pma._pma_q(file["relative_path"])
+        urls.append(f"{base}transfer/Upload/{upload_id}?sessionId={encoded_session}&path={encoded_path}")
+    return urls
+
 
 def _get_slide_package_size(slide_path: str) -> tuple[int, int]:
     """Return total bytes and maximum single-file bytes for a slide package."""
-    total_size = 0
-    max_size = 0
-
-    files = [slide_path]
-    slide_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
-    slide_dir = os.path.join(os.path.dirname(slide_path), slide_name_no_ext)
-
-    if os.path.isdir(slide_dir):
-        for root, _, filenames in os.walk(slide_dir):
-            for filename in filenames:
-                files.append(os.path.join(root, filename))
-
-    for filepath in files:
-        size = os.stat(filepath).st_size
-        total_size += size
-        max_size = max(max_size, size)
-
+    files = _collect_slide_package_files(slide_path)
+    total_size = sum(file["size"] for file in files)
+    max_size = max(file["size"] for file in files) if files else 0
     return total_size, max_size
+
+
+async def _poll_image_info(
+        slide_ref: str,
+        session_id: str,
+        verify=True,
+        max_attempts: int = 5,
+        interval_seconds: float = 1.0,
+) -> bool:
+    for attempt in range(max_attempts):
+        try:
+            await asyncio.to_thread(
+                get_slide_info,
+                slide_ref,
+                sessionID=session_id,
+                verify=verify
+            )
+            return True
+        except Exception:
+            if attempt >= max_attempts - 1:
+                return False
+            await asyncio.sleep((attempt + 1) * interval_seconds)
+
+    return False
+
+
+async def _upload_package_files(
+        *,
+        client: PmaCoreClient,
+        session_id: str,
+        upload_directory: str,
+        package_files,
+        progress_callback=None,
+        verify=True,
+) -> tuple[bool, str | None]:
+    try:
+        header = UploadHeaderModel(
+            path=upload_directory,
+            files=[
+                UploadFileModel(
+                    isMain=file["is_main"],
+                    length=file["size"],
+                    path=file["relative_path"]
+                )
+                for file in package_files
+            ]
+        )
+
+        resp = await client.upload_header(header, session_id)
+
+        is_azure = _is_upload_type(resp.upload_type, 2, "azure")
+        is_amazon = _is_upload_type(resp.upload_type, 1, "amazons3")
+
+        def _normalize_relative_path(path: str) -> str:
+            return (path or "").replace("\\", "/").lstrip("/")
+
+        multipart_by_path = {
+            _normalize_relative_path(mf.file_path): mf
+            for mf in (resp.multipart_files or [])
+        }
+
+        # Keep aggregate progress in bytes across all files (same semantics as the rest of this SDK).
+        total_bytes = sum(file["size"] for file in package_files)
+        uploaded_size = [0] * len(package_files)
+
+        def update_progress(index: int, loaded: int):
+            capped = min(max(loaded, 0), package_files[index]["size"])
+            uploaded_size[index] = capped
+            if callable(progress_callback) and total_bytes > 0:
+                progress_callback(sum(uploaded_size), total_bytes)
+
+        if callable(progress_callback):
+            progress_callback(0, total_bytes)
+
+        has_direct_urls = bool(resp.urls)
+        direct_urls = list(resp.urls or [])
+        fallback_urls = _build_upload_urls(client.server_url, session_id, resp.id, package_files)
+
+        for index, file in enumerate(package_files):
+            direct_url = direct_urls[index] if index < len(direct_urls) else None
+            relative_path = _normalize_relative_path(file["relative_path"])
+            multipart_file = multipart_by_path.get(relative_path)
+
+            def per_file_progress(sent: int, _total: int, idx=index):
+                update_progress(idx, sent)
+
+            with open(file["local_path"], "rb") as stream:
+                if is_amazon and multipart_file is not None:
+                    remote_file_path = _join_virtual_path(upload_directory, multipart_file.file_path)
+                    await client.upload_multipart_file_to_s3(
+                        multipart_file,
+                        remote_file_path,
+                        stream,
+                        session_id,
+                        progress_callback=per_file_progress
+                    )
+                elif is_azure:
+                    if not direct_url:
+                        return False, f"No upload URL provided for file {file['relative_path']}"
+                    await client.upload_file(
+                        resp.id,
+                        resp.upload_type,
+                        direct_url,
+                        file["relative_path"],
+                        stream,
+                        session_id,
+                        total_bytes=file["size"],
+                        progress_callback=per_file_progress,
+                        method="PUT",
+                        verify=verify
+                    )
+                else:
+                    upload_url = direct_url or (fallback_urls[index] if index < len(fallback_urls) else None)
+                    method = "PUT" if bool(direct_url) else "POST"
+                    if not upload_url:
+                        return False, f"No upload URL provided for file {file['relative_path']}"
+                    await client.upload_file(
+                        resp.id,
+                        resp.upload_type,
+                        upload_url,
+                        file["relative_path"],
+                        stream,
+                        session_id,
+                        total_bytes=file["size"],
+                        progress_callback=per_file_progress,
+                        method=method,
+                        verify=verify
+                    )
+
+            update_progress(index, file["size"])
+
+        finalize_url = f"{client.server_url}transfer/Upload/{resp.id}"
+        finalize_response = await asyncio.to_thread(
+            requests.get,
+            finalize_url,
+            params={"sessionId": session_id},
+            verify=verify
+        )
+
+        if finalize_response.status_code < 200 or finalize_response.status_code >= 300:
+            try:
+                payload = finalize_response.json()
+                error_message = payload.get("Message") or payload.get("ExceptionMessage")
+            except Exception:
+                error_message = finalize_response.text
+            return False, f"Upload finalize failed: {error_message}"
+
+        main_slide_path = _join_virtual_path(upload_directory, package_files[0]["relative_path"])
+        image_ready = await _poll_image_info(
+            main_slide_path,
+            session_id,
+            verify=verify,
+            max_attempts=5,
+            interval_seconds=1.0
+        )
+
+        if not image_ready:
+            return False, "Slide upload completed, but unable to fetch image information."
+
+        if callable(progress_callback):
+            progress_callback(total_bytes, total_bytes)
+
+        return True, None
+    except Exception as e:
+        if os.getenv("PMA_UPLOAD_DEBUG_TRACE", "").lower() in ("1", "true", "yes"):
+            return False, f"{e}\n{traceback.format_exc()}"
+        return False, str(e)
+
 
 async def upload(
         *,
@@ -1939,7 +2166,7 @@ async def upload(
     Automatically:
     - calculates full slide size (file + folder + nested files)
     - detects server upload type
-    - routes upload to legacy transfer or large file uploader
+    - routes according to server upload strategy
     """
 
     if not os.path.isfile(slide_path):
@@ -1959,18 +2186,18 @@ async def upload(
 
     try:
         client = PmaCoreClient(pma_core_url)
+        package_files = _collect_slide_package_files(slide_path)
 
-        file_size = os.stat(slide_path).st_size
-        file_name = os.path.basename(slide_path)
-
+        normalized_upload_directory = _normalize_upload_directory(upload_directory)
         header = UploadHeaderModel(
-            path=upload_directory,
+            path=normalized_upload_directory,
             files=[
                 UploadFileModel(
-                    isMain=True,
-                    length=file_size,
-                    path=file_name
+                    isMain=file["is_main"],
+                    length=file["size"],
+                    path=file["relative_path"]
                 )
+                for file in package_files
             ]
         )
 
@@ -1983,7 +2210,7 @@ async def upload(
         # ================================
 
         # UploadType 0 → always small uploader
-        if resp.upload_type == 0:
+        if _is_upload_type(resp.upload_type, 0, "filesystem"):
             print("UploadType 0 → forcing SMALL uploader")
 
             return upload_legacy(
@@ -1993,33 +2220,21 @@ async def upload(
                 progress_callback=progress_callback
             )
 
-        # Otherwise choose based on total package size or safe single-request cap
-        if total_size < FOUR_GB and max_file_size < FIVE_GB:
-            print("Using SMALL file uploader")
-
-            return upload_legacy(
-                session_id=session_id,
-                slide_path=slide_path,
-                upload_directory=upload_directory,
-                progress_callback=progress_callback
-            )
-
-        else:
-            print("Using LARGE file uploader")
-
-            return await upload_file_over_5gb(
-                pma_core_url=pma_core_url,
-                session_id=session_id,
-                slide_path=slide_path,
-                upload_directory=upload_directory,
-                progress_callback=progress_callback
-            )
+        # For cloud uploads, follow server strategy (S3 multipart, Azure blocks, or direct URLs).
+        print("Using SERVER-DRIVEN uploader")
+        return await upload_file_on_cloud(
+            pma_core_url=pma_core_url,
+            session_id=session_id,
+            slide_path=slide_path,
+            upload_directory=upload_directory,
+            progress_callback=progress_callback
+        )
 
     except Exception as e:
         return False, str(e)
 
 # **************************************#
-#   === Small Files < 5bg Uploader  === #
+#   ===     Filesystem Uploader    ===  #
 # **************************************#
 def upload_legacy(slide_path, upload_directory, session_id, progress_callback=None, verify=True):
     """
@@ -2157,15 +2372,16 @@ def upload_legacy(slide_path, upload_directory, session_id, progress_callback=No
 
 
 # **************************************#
-#   === Large Files > 5gb Uploader === #
+#   ===       Cloud Uploader       ===  #
 # **************************************#
-async def upload_file_over_5gb(
+async def upload_file_on_cloud(
         *,
         pma_core_url: str,
         session_id: str,
         slide_path: str,
         upload_directory: str,
         progress_callback=None,
+        verify=True,
 ):
     """
     Asynchronous large-file upload implementation using PmaCoreClient.
@@ -2176,89 +2392,21 @@ async def upload_file_over_5gb(
     - global progress tracking across all uploaded files
     """
 
-    # ===== GETTING ALL FILES =====
-    all_files = []
+    if not os.path.isfile(slide_path):
+        return False, f"File not found: {slide_path}"
 
-    all_files.append(slide_path)
+    normalized_upload_directory = _normalize_upload_directory(upload_directory)
+    package_files = _collect_slide_package_files(slide_path)
 
-    vsi_name_no_ext = os.path.splitext(os.path.basename(slide_path))[0]
-    local_stack_root = os.path.join(os.path.dirname(slide_path), vsi_name_no_ext)
-
-    # stack files
-    if os.path.isdir(local_stack_root):
-        for root, _, files in os.walk(local_stack_root):
-            for f in files:
-                all_files.append(os.path.join(root, f))
-
-    # ===== general size =====
-    total_bytes = sum(os.stat(f).st_size for f in all_files)
-
-    # ===== GLOBAL TRACKER =====
-    class GlobalProgressTracker:
-        def __init__(self, total_bytes, callback):
-            self.total_bytes = total_bytes
-            self.callback = callback
-            self.sent_total = 0
-
-        def add(self, delta):
-            self.sent_total += delta
-            if self.callback and self.total_bytes > 0:
-                self.callback(self.sent_total, self.total_bytes)
-
-    tracker = GlobalProgressTracker(total_bytes, progress_callback)
-
-    # ===== FILE CALLBACK WRAPPER =====
-    def make_file_cb():
-        last_sent = 0
-
-        def _cb(sent, total):
-            nonlocal last_sent
-            delta = sent - last_sent
-            last_sent = sent
-            tracker.add(delta)
-
-        return _cb
-
-    ok, err = await large_files_upload_package(
-        pma_core_url=pma_core_url,
+    client = PmaCoreClient(pma_core_url)
+    return await _upload_package_files(
+        client=client,
         session_id=session_id,
-        slide_path=slide_path,
-        upload_directory=upload_directory,
-        progress_callback=make_file_cb()
+        upload_directory=normalized_upload_directory,
+        package_files=package_files,
+        progress_callback=progress_callback,
+        verify=verify,
     )
-
-    if not ok:
-        return False, f"Upload failed: {err}"
-
-    # ===== STACK =====
-    if os.path.isdir(local_stack_root):
-
-        for root, _, files in os.walk(local_stack_root):
-
-            for file_name in files:
-
-                local_file = os.path.join(root, file_name)
-
-                rel_inside_stack = os.path.relpath(
-                    local_file,
-                    local_stack_root
-                ).replace("\\", "/")
-
-                remote_dir = f"{upload_directory}/{vsi_name_no_ext}/{os.path.dirname(rel_inside_stack)}"
-                remote_dir = remote_dir.rstrip("/")
-
-                ok, err = await large_files_upload_package(
-                    pma_core_url=pma_core_url,
-                    session_id=session_id,
-                    slide_path=local_file,
-                    upload_directory=remote_dir,
-                    progress_callback=make_file_cb()
-                )
-
-                if not ok:
-                    return False, f"Stack upload failed: {local_file} -> {err}"
-
-    return True, None
 
 
 async def large_files_upload_package(
@@ -2268,93 +2416,37 @@ async def large_files_upload_package(
         slide_path: str,
         upload_directory: str,
         progress_callback=None,
+        verify=True,
 ) -> tuple[bool, str | None]:
     """
-    Low-level async upload routine for a single file.
+    Low-level async upload wrapper for a single file.
 
     Performs:
     - upload header request
     - multipart or direct upload
-    - upload completion polling
+    - upload finalization + image info polling
     """
 
-    try:
-        client = PmaCoreClient(pma_core_url)
-        print("trust_env:", client.session.trust_env)
+    if not os.path.isfile(slide_path):
+        return False, f"File not found: {slide_path}"
 
-        if not os.path.isfile(slide_path):
-            return False, f"File not found: {slide_path}"
+    normalized_upload_directory = _normalize_upload_directory(upload_directory)
+    single_file = [{
+        "local_path": slide_path,
+        "relative_path": os.path.basename(slide_path),
+        "is_main": True,
+        "size": os.stat(slide_path).st_size
+    }]
 
-        file_size = os.stat(slide_path).st_size
-        file_name = os.path.basename(slide_path)
-
-        # ===== HEADER =====
-        header = UploadHeaderModel(
-            path=upload_directory,
-            files=[
-                UploadFileModel(
-                    isMain=True,
-                    length=file_size,
-                    path=file_name
-                )
-            ]
-        )
-
-        # ===== SEND HEADER =====
-        resp = await client.upload_header(header, session_id)
-
-        # print("UploadType:", resp.upload_type)
-        print("MultipartFiles:", resp.multipart_files)
-        print("Urls:", resp.urls)
-
-        # ===== MULTIPART ONLY IF SERVER SENT PARTS =====
-        if resp.multipart_files and len(resp.multipart_files) > 0:
-
-            mp = resp.multipart_files[0]
-
-            full_virtual_path = (
-                    header.path.rstrip("/") + "/" + mp.file_path.lstrip("/")
-            )
-
-            with open(slide_path, "rb") as stream:
-                await client.upload_multipart_file_to_s3(
-                    mp,
-                    full_virtual_path,
-                    stream,
-                    session_id,
-                    progress_callback=progress_callback
-                )
-
-        # ===== SINGLE PUT / AZURE / FILESYSTEM =====
-        else:
-
-            upload_url = resp.urls[0] if resp.urls else None
-
-            with open(slide_path, "rb") as stream:
-                await client.upload_file(
-                    resp.id,
-                    resp.upload_type,
-                    upload_url,
-                    file_name,
-                    stream,
-                    session_id,
-                    total_bytes=file_size,
-                    progress_callback=progress_callback
-                )
-
-        # ===== STATUS =====
-        for _ in range(12):
-            st = await client.get_upload_status(resp.id, session_id)
-
-            if '"Complete": true' in st or '"Complete" : true' in st:
-                return True, None
-
-            await asyncio.sleep(10)
-
-        return False, "Upload not completed"
-
-    except Exception as e:
-        return False, str(e)
+    client = PmaCoreClient(pma_core_url)
+    return await _upload_package_files(
+        client=client,
+        session_id=session_id,
+        upload_directory=normalized_upload_directory,
+        package_files=single_file,
+        progress_callback=progress_callback,
+        verify=verify,
+    )
 
 
 # callback for large files upload
