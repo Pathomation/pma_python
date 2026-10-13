@@ -1935,13 +1935,68 @@ def _is_upload_type(upload_type, *candidates) -> bool:
     return False
 
 
+def _companion_folders(slide_path: str) -> list[str]:
+    """
+    Folders that hold the image data of a multi-file slide, by vendor naming convention:
+    - "<name>/"   e.g. 3DHistech MRXS
+    - "_<name>_/" e.g. Olympus/Evident VSI
+    """
+    directory = os.path.dirname(slide_path)
+    stem = os.path.splitext(os.path.basename(slide_path))[0]
+    return [os.path.join(directory, stem), os.path.join(directory, f"_{stem}_")]
+
+
+def _pma_start_files_for_slide(slide_path: str) -> list[str]:
+    """
+    Ask PMA.start which local files belong to this slide (it knows every multi-file format).
+    Best effort: returns [] when PMA.start is not running or cannot answer.
+    """
+    try:
+        return list(get_files_for_slide(slide_path, _pma_pmacoreliteSessionID) or [])
+    except Exception:
+        if pma._pma_debug == True:
+            print("PMA.start could not enumerate the files for", slide_path)
+        return []
+
+
 def _collect_slide_package_files(slide_path: str):
+    """
+    All local files that make up a slide: the main file first, then its image data files.
+    Files are found both by vendor folder conventions (see _companion_folders) and by asking
+    PMA.start, so a multi-file slide is never uploaded without its image data.
+    Relative paths are relative to the folder that contains the main file.
+    """
     if not os.path.isfile(slide_path):
         raise ValueError(f"File not found: {slide_path}")
 
+    slide_path = os.path.abspath(slide_path)
+    base_dir = os.path.dirname(slide_path)
     main_name = os.path.basename(slide_path)
-    child_folder = os.path.splitext(main_name)[0]
-    stack_root = os.path.join(os.path.dirname(slide_path), child_folder)
+
+    def key(path):
+        return os.path.normcase(os.path.abspath(path))
+
+    extra = {}
+
+    def add(path):
+        path = os.path.abspath(path)
+        if key(path) == key(slide_path) or not os.path.isfile(path):
+            return
+        rel = os.path.relpath(path, base_dir)
+        if rel.startswith(os.pardir) or os.path.isabs(rel):
+            # never upload files from outside the slide's own folder
+            return
+        extra.setdefault(key(path), (path, rel.replace("\\", "/")))
+
+    for folder in _companion_folders(slide_path):
+        if os.path.isdir(folder):
+            for root, dirnames, filenames in os.walk(folder):
+                dirnames.sort()
+                for filename in sorted(filenames):
+                    add(os.path.join(root, filename))
+
+    for path in _pma_start_files_for_slide(slide_path):
+        add(path)
 
     package_files = [{
         "local_path": slide_path,
@@ -1949,20 +2004,13 @@ def _collect_slide_package_files(slide_path: str):
         "is_main": True,
         "size": os.stat(slide_path).st_size
     }]
-
-    if os.path.isdir(stack_root):
-        for root, dirnames, filenames in os.walk(stack_root):
-            dirnames.sort()
-            filenames.sort()
-            for filename in filenames:
-                local_path = os.path.join(root, filename)
-                rel_inside_stack = os.path.relpath(local_path, stack_root).replace("\\", "/")
-                package_files.append({
-                    "local_path": local_path,
-                    "relative_path": f"{child_folder}/{rel_inside_stack}",
-                    "is_main": False,
-                    "size": os.stat(local_path).st_size
-                })
+    for path, rel in sorted(extra.values(), key=lambda item: item[1].lower()):
+        package_files.append({
+            "local_path": path,
+            "relative_path": rel,
+            "is_main": False,
+            "size": os.stat(path).st_size
+        })
 
     return package_files
 
